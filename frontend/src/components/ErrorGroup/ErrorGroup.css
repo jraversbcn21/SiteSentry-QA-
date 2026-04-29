@@ -1,0 +1,93 @@
+.error-group {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.error-group-header {
+  width: 100%;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  border-left: 5px solid #e2e8f0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.error-group-header:hover {
+  background: #f8fafc;
+}
+
+.error-group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.error-group-icon {
+  font-size: 1.3rem;
+}
+
+.error-group-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.error-group-count {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.error-group-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.summary-badge.high { background: #fee2e2; color: #991b1b; }
+.summary-badge.medium { background: #fef3c7; color: #92400e; }
+.summary-badge.low { background: #dbeafe; color: #1e40af; }
+
+.error-group-chevron {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-left: 4px;
+}
+
+.error-group-content {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.error-group-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.error-group-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}

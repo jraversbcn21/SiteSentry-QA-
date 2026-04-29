@@ -1,0 +1,122 @@
+.error-card {
+  background: white;
+  border-radius: 8px;
+  padding: 14px 16px;
+  border-left: 4px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.error-card.severity-high { border-left-color: #ef4444; }
+.error-card.severity-medium { border-left-color: #f59e0b; }
+.error-card.severity-low { border-left-color: #3b82f6; }
+
+.error-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.error-card-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.severity-badge, .type-badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.severity-badge.severity-high { background: #fee2e2; color: #991b1b; }
+.severity-badge.severity-medium { background: #fef3c7; color: #92400e; }
+.severity-badge.severity-low { background: #dbeafe; color: #1e40af; }
+
+.type-badge {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.error-card-description {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.error-card-url {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+}
+
+.url-label {
+  color: #94a3b8;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.url-link {
+  color: #2563eb;
+  text-decoration: none;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.url-link:hover { text-decoration: underline; }
+.url-link.source { color: #7c3aed; }
+
+.error-card-metadata {
+  margin-top: 4px;
+}
+
+.error-card-metadata summary {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  cursor: pointer;
+  user-select: none;
+}
+
+.metadata-table {
+  margin: 8px 0 0;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.metadata-row {
+  display: flex;
+  padding: 6px 12px;
+  font-size: 0.76rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.metadata-row:last-child {
+  border-bottom: none;
+}
+
+.metadata-row:hover {
+  background: #f1f5f9;
+}
+
+.metadata-key {
+  color: #64748b;
+  font-weight: 600;
+  min-width: 130px;
+  flex-shrink: 0;
+}
+
+.metadata-value {
+  color: #1e293b;
+  word-break: break-all;
+  font-family: monospace;
+  font-size: 0.74rem;
+}

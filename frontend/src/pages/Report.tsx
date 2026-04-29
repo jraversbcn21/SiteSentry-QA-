@@ -1,0 +1,97 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import ReportViewer from '../components/ReportViewer/ReportViewer';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { scanApi } from '../services/api';
+import { ReportResponse } from '../types';
+import './Report.css';
+
+export default function Report() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [report, setReport] = useState<ReportResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    if (!id) {
+      navigate('/');
+      return;
+    }
+
+    const fetchReport = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        console.log('[Report] Fetching report for ID:', id);
+        const data = await scanApi.getReport(id);
+        console.log('[Report] Report data received:', data);
+        console.log('[Report] Issues count:', data?.issues?.length || 0);
+        setReport(data);
+      } catch (err: any) {
+        const errorMessage = err?.response?.data?.error || err?.message || 'Error al cargar el reporte. Por favor intenta nuevamente.';
+        console.error('[Report] Error fetching report:', err);
+        console.error('[Report] Error details:', {
+          message: err?.message,
+          status: err?.response?.status,
+          data: err?.response?.data,
+        });
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReport();
+  }, [id, navigate]);
+
+  if (loading) {
+    return (
+      <div className="report-loading">
+        <p>Cargando reporte...</p>
+      </div>
+    );
+  }
+
+  if (error || !report) {
+    return (
+      <div className="report-error">
+        <p>{error || 'Reporte no encontrado'}</p>
+        {error && (
+          <details style={{ marginTop: '16px', textAlign: 'left', maxWidth: '600px' }}>
+            <summary style={{ cursor: 'pointer', color: '#666' }}>Detalles del error</summary>
+            <pre style={{ 
+              marginTop: '8px', 
+              padding: '12px', 
+              background: '#f5f5f5', 
+              borderRadius: '4px',
+              fontSize: '12px',
+              overflow: 'auto'
+            }}>
+              {JSON.stringify({ id, error, report: report ? 'exists' : 'null' }, null, 2)}
+            </pre>
+          </details>
+        )}
+        <button onClick={() => navigate('/')} className="back-button">
+          Volver al inicio
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <div className="report-page">
+        <div className="report-page-header">
+          <button onClick={() => navigate('/')} className="back-button">
+            ← Volver al inicio
+          </button>
+        </div>
+        <div className="report-page-content">
+          <ReportViewer report={report} />
+        </div>
+      </div>
+    </ErrorBoundary>
+  );
+}
+

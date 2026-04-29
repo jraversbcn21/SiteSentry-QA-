@@ -1,0 +1,320 @@
+.report-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Header */
+.report-header {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.report-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.report-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.report-url {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+.report-url:hover { text-decoration: underline; }
+
+.report-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.report-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 4px solid;
+  flex-shrink: 0;
+}
+
+.score-number {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.score-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Header right (score + download) */
+.report-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.report-download-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.download-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.download-json {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.download-json:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.download-csv {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.download-csv:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+/* Summary Cards */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-top: 3px solid transparent;
+  cursor: default;
+  transition: transform 0.15s;
+}
+
+.summary-card.high, .summary-card.medium, .summary-card.low {
+  cursor: pointer;
+}
+
+.summary-card.high { border-top-color: #ef4444; }
+.summary-card.medium { border-top-color: #f59e0b; }
+.summary-card.low { border-top-color: #3b82f6; }
+.summary-card.total { border-top-color: #6366f1; }
+
+.summary-card:hover:not(.total) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.summary-card-number {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.summary-card-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Type breakdown */
+.type-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.type-chip {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+
+.type-chip:hover {
+  background: #e0f2fe;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.type-chip.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+}
+
+/* Filters */
+.report-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 9px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  background: white;
+  color: #0f172a;
+}
+
+.search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.filter-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-select {
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  outline: none;
+}
+
+.filter-select:focus {
+  border-color: #2563eb;
+}
+
+.clear-filters {
+  padding: 9px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.clear-filters:hover {
+  background: #fee2e2;
+}
+
+/* Issues count */
+.issues-count {
+  font-size: 0.85rem;
+  color: #64748b;
+  padding: 0 4px;
+}
+
+/* No issues state */
+.no-issues {
+  text-align: center;
+  padding: 48px 24px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.no-issues-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.no-issues h3 {
+  font-size: 1.3rem;
+  color: #1e293b;
+  margin: 0 0 8px;
+}
+
+.no-issues p {
+  color: #64748b;
+  margin: 0;
+}
+
+/* Issues groups */
+.issues-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .summary-cards { grid-template-columns: repeat(2, 1fr); }
+  .report-score { width: 70px; height: 70px; }
+  .score-number { font-size: 1.4rem; }
+}
+
+@media (max-width: 480px) {
+  .summary-cards { grid-template-columns: repeat(2, 1fr); }
+  .report-header { flex-direction: column; }
+  .report-header-right { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
+  .report-download-buttons { flex-direction: column; gap: 6px; }
+}

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"require\\(''express''\\); require\\(''cors''\\); require\\(''helmet''\\); require\\(''bullmq''\\); require\\(''ioredis''\\); require\\(''zod''\\); console.log\\(''Todas las dependencias OK''\\)\")",
+      "Bash(cd:*)",
+      "Bash(node -e \"require\\(''express''\\); require\\(''cors''\\); require\\(''helmet''\\); require\\(''bullmq''\\); require\\(''ioredis''\\); require\\(''zod''\\); require\\(''@prisma/client''\\); console.log\\(''Todas las dependencias OK''\\)\")",
+      "Bash(npx prisma:*)",
+      "Bash(timeout 6 node dist/api/server.js)",
+      "Bash(node -e \"require\\(''''vite''''\\); console.log\\(''''vite OK''''\\)\")",
+      "Bash(nslookup redis-16089.crce202.eu-west-3-1.ec2.cloud.redislabs.com)",
+      "Bash(where redis-server:*)",
+      "Bash(redis-server --version)",
+      "Bash(find 'C:/Users/orjan/Repositorio/SiteSentry QA' -maxdepth 3 -not -path */node_modules/* -not -path */.git/* -not -path */dist/*)",
+      "Bash(npx tsc:*)",
+      "Bash(while read:*)",
+      "Bash(do echo:*)",
+      "Bash(done)"
+    ]
+  }
+}
