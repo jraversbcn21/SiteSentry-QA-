@@ -16,6 +16,9 @@ const typeConfig: Record<IssueType, { label: string; icon: string; color: string
   [IssueType.EMPTY_CONTENT]: { label: 'Contenido Vacio', icon: '📭', color: '#8b5cf6' },
   [IssueType.LAZY_LOAD]: { label: 'Carga Diferida', icon: '⏳', color: '#06b6d4' },
   [IssueType.FORM_MODAL]: { label: 'Formularios/Modales', icon: '📋', color: '#10b981' },
+  [IssueType.CONSOLE_ERROR]: { label: 'Errores de Consola', icon: '🐛', color: '#dc2626' },
+  [IssueType.PERFORMANCE]: { label: 'Rendimiento', icon: '⚡', color: '#d97706' },
+  [IssueType.ACCESSIBILITY]: { label: 'Accesibilidad', icon: '♿', color: '#7c3aed' },
 };
 
 export default function ErrorGroup({ type, issues, defaultOpen = false }: ErrorGroupProps) {

@@ -1,5 +1,5 @@
 import type { Page } from 'playwright';
-import type { NetworkEvent } from '../analyzer/PageAnalyzer';
+import type { NetworkEvent, ConsoleEvent } from '../analyzer/PageAnalyzer';
 
 export enum ScanStatus {
   PENDING = 'PENDING',
@@ -15,6 +15,9 @@ export enum IssueType {
   EMPTY_CONTENT = 'EMPTY_CONTENT',
   LAZY_LOAD = 'LAZY_LOAD',
   FORM_MODAL = 'FORM_MODAL',
+  CONSOLE_ERROR = 'CONSOLE_ERROR',
+  PERFORMANCE = 'PERFORMANCE',
+  ACCESSIBILITY = 'ACCESSIBILITY',
 }
 
 export enum IssueSeverity {
@@ -38,5 +41,5 @@ export interface ScanConfig {
 
 export interface IChecker {
   name: string;
-  check(url: string, page: Page, networkEvents: NetworkEvent[]): Promise<Issue[]>;
+  check(url: string, page: Page, networkEvents: NetworkEvent[], consoleErrors?: ConsoleEvent[]): Promise<Issue[]>;
 }

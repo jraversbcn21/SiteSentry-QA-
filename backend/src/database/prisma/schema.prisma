@@ -53,6 +53,9 @@ enum IssueType {
   EMPTY_CONTENT
   LAZY_LOAD
   FORM_MODAL
+  CONSOLE_ERROR
+  PERFORMANCE
+  ACCESSIBILITY
 }
 
 enum IssueSeverity {

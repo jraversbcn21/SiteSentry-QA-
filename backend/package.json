@@ -14,10 +14,16 @@
     "prisma:studio": "prisma studio --schema=src/database/prisma/schema.prisma",
     "test": "echo \"Tests pendientes de implementar\""
   },
-  "keywords": ["qa", "crawling", "web-analysis", "automation"],
+  "keywords": [
+    "qa",
+    "crawling",
+    "web-analysis",
+    "automation"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@prisma/client": "^5.7.1",
     "bullmq": "^5.1.9",
     "cors": "^2.8.5",
@@ -36,4 +42,3 @@
     "typescript": "^5.3.3"
   }
 }
-

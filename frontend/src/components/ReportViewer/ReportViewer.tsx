@@ -284,6 +284,9 @@ function getTypeIcon(type: IssueType): string {
     [IssueType.EMPTY_CONTENT]: '📭',
     [IssueType.LAZY_LOAD]: '⏳',
     [IssueType.FORM_MODAL]: '📋',
+    [IssueType.CONSOLE_ERROR]: '🐛',
+    [IssueType.PERFORMANCE]: '⚡',
+    [IssueType.ACCESSIBILITY]: '♿',
   };
   return icons[type] || '⚠️';
 }
@@ -296,6 +299,9 @@ function getTypeLabel(type: IssueType): string {
     [IssueType.EMPTY_CONTENT]: 'Contenido Vacio',
     [IssueType.LAZY_LOAD]: 'Carga Diferida',
     [IssueType.FORM_MODAL]: 'Formularios/Modales',
+    [IssueType.CONSOLE_ERROR]: 'Errores de Consola',
+    [IssueType.PERFORMANCE]: 'Rendimiento',
+    [IssueType.ACCESSIBILITY]: 'Accesibilidad',
   };
   return labels[type] || type;
 }

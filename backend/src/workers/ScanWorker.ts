@@ -49,30 +49,12 @@ export async function processScanJob(job: Job) {
 
     for (const checker of checkers) {
       try {
-        const issues = await checker.check(url, analysis.page, analysis.networkEvents);
+        const issues = await checker.check(url, analysis.page, analysis.networkEvents, analysis.consoleErrors);
         allIssues.push(...issues);
         console.log(`[ScanWorker] ${checker.name}: ${issues.length} issues`);
       } catch (error) {
         console.error(`[ScanWorker] ${checker.name} fallo:`, error);
       }
-    }
-
-    // Add console errors as issues
-    for (const consoleError of analysis.consoleErrors.slice(0, 20)) {
-      // Skip common noise
-      if (
-        consoleError.text.includes('favicon.ico') ||
-        consoleError.text.includes('third-party') ||
-        consoleError.text.includes('[Fast Refresh]')
-      ) continue;
-
-      allIssues.push({
-        type: 'BROKEN_RESOURCE' as import('../types').IssueType,
-        severity: 'MEDIUM' as import('../types').IssueSeverity,
-        url,
-        description: `Error en consola: ${consoleError.text.substring(0, 200)}`,
-        metadata: { source: consoleError.location, consoleType: consoleError.type },
-      });
     }
 
     // Close the page
