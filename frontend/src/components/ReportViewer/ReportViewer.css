@@ -318,3 +318,15 @@
   .report-header-right { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
   .report-download-buttons { flex-direction: column; gap: 6px; }
 }
+
+.report-screenshot {
+  margin-bottom: 16px;
+}
+
+.report-screenshot-label {
+  display: block;
+  text-align: center;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}

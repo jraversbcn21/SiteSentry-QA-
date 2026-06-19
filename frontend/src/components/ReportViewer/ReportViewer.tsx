@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ReportResponse, Issue, IssueType, IssueSeverity, ScanStatus } from '../../types';
 import ErrorGroup from '../ErrorGroup/ErrorGroup';
+import ScreenshotThumb from '@/components/ScreenshotThumb/ScreenshotThumb';
 import './ReportViewer.css';
 
 function downloadFile(content: string, filename: string, mimeType: string) {
@@ -186,6 +187,17 @@ export default function ReportViewer({ report }: ReportViewerProps) {
         </div>
       </div>
 
+      {report.fullPageScreenshot && (
+        <div className="report-screenshot">
+          <ScreenshotThumb
+            path={report.fullPageScreenshot}
+            alt={`Screenshot completo de ${report.url}`}
+            maxHeight={300}
+          />
+          <span className="report-screenshot-label">Screenshot completo de la pagina</span>
+        </div>
+      )}
+
       <div className="type-breakdown">
         {ALL_TYPES.map((type) => {
           const count = report.summary.byType[type] || 0;
@@ -267,7 +279,7 @@ export default function ReportViewer({ report }: ReportViewerProps) {
               key={type}
               type={type as IssueType}
               issues={issues}
-              defaultOpen={issues.some((i) => i.severity === 'HIGH')}
+              defaultOpen={false}
             />
           ))}
         </div>

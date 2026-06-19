@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Issue, IssueSeverity, IssueType } from '../../types';
+import { explainIssue } from '../../services/ai';
+import ScreenshotThumb from '@/components/ScreenshotThumb/ScreenshotThumb';
 import './ErrorCard.css';
 
 interface ErrorCardProps {
@@ -6,6 +9,12 @@ interface ErrorCardProps {
 }
 
 export default function ErrorCard({ issue }: ErrorCardProps) {
+  const [copied, setCopied] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAi, setShowAi] = useState(false);
+
   const severityConfig = {
     [IssueSeverity.HIGH]: { label: 'Alto', className: 'severity-high', icon: '🔴' },
     [IssueSeverity.MEDIUM]: { label: 'Medio', className: 'severity-medium', icon: '🟡' },
@@ -23,6 +32,51 @@ export default function ErrorCard({ issue }: ErrorCardProps) {
 
   const sev = severityConfig[issue.severity] || severityConfig[IssueSeverity.LOW];
   const type = typeConfig[issue.type] || { label: issue.type, icon: '⚠️' };
+
+  const handleCopy = async () => {
+    const typeLabel = typeConfig[issue.type]?.label || issue.type;
+    const sevLabel = severityConfig[issue.severity]?.label || issue.severity;
+
+    const lines = [
+      '--- SiteSentry QA - Detalles de Error ---',
+      `Tipo: ${typeLabel} (${issue.type})`,
+      `Severidad: ${sevLabel} (${issue.severity})`,
+      `Descripcion: ${issue.description}`,
+      `URL: ${issue.url}`,
+    ];
+    if (issue.sourceUrl) {
+      lines.push(`Origen: ${issue.sourceUrl}`);
+    }
+    if (issue.metadata && Object.keys(issue.metadata).length > 0) {
+      lines.push('');
+      lines.push('--- Metadatos ---');
+      for (const [key, value] of Object.entries(issue.metadata)) {
+        lines.push(`${formatMetadataKey(key)}: ${formatMetadataValue(key, value)}`);
+      }
+    }
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAIExplain = async () => {
+    if (aiResponse) {
+      setShowAi(!showAi);
+      return;
+    }
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const response = await explainIssue(issue);
+      setAiResponse(response);
+      setShowAi(true);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const urlShortened = issue.url.length > 80 ? issue.url.slice(0, 77) + '...' : issue.url;
   const sourceShortened = issue.sourceUrl && issue.sourceUrl.length > 80
@@ -71,6 +125,39 @@ export default function ErrorCard({ issue }: ErrorCardProps) {
               </div>
             ))}
           </div>
+          {issue.screenshot_path && (
+            <ScreenshotThumb
+              path={issue.screenshot_path}
+              alt={issue.description}
+            />
+          )}
+          <div className="metadata-actions">
+            <button className="copy-details-btn" onClick={handleCopy}>
+              {copied ? '✓ Copiado!' : '📋 Copiar detalles'}
+            </button>
+            <button
+              className="ai-explain-btn"
+              onClick={handleAIExplain}
+              disabled={aiLoading}
+            >
+              {aiLoading ? '⏳ Analizando...' : aiResponse ? (showAi ? '🤖 Ocultar IA' : '🤖 Ver explicacion IA') : '🤖 Explicar con IA'}
+            </button>
+          </div>
+          {aiError && (
+            <div className="ai-error">{aiError}</div>
+          )}
+          {showAi && aiResponse && (
+            <div className="ai-response">
+              {aiResponse.split('\n').map((line, i) => {
+                const trimmed = line.trim();
+                if (!trimmed) return <br key={i} />;
+                if (/^\d+\.\s/.test(trimmed)) {
+                  return <h4 key={i} className="ai-section-title">{trimmed}</h4>;
+                }
+                return <p key={i} className="ai-line">{trimmed}</p>;
+              })}
+            </div>
+          )}
         </details>
       )}
     </div>
@@ -109,6 +196,13 @@ const metadataKeyLabels: Record<string, string> = {
   mimeType: 'Tipo MIME',
   size: 'Tamano',
   resourceType: 'Tipo recurso',
+  alt: 'Texto alternativo',
+  ariaLabel: 'Aria-label',
+  source: 'Ubicacion',
+  consoleType: 'Tipo de consola',
+  errorType: 'Tipo de error',
+  originalError: 'Error original',
+  recomendacion: 'Recomendacion',
 };
 
 function formatMetadataKey(key: string): string {
