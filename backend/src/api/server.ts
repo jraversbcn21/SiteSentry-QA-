@@ -46,6 +46,16 @@ app.use('/api/reports', reportsRoutes);
 // Screenshots serving
 app.get('/screenshots/:scanId/:filename', (req, res) => {
   const { scanId, filename } = req.params;
+
+  // Validate to prevent path traversal
+  if (!/^[a-f0-9-]{36}$/.test(scanId) ||
+      filename.includes('..') ||
+      filename.includes('/') ||
+      filename.includes('\\')) {
+    res.status(400).json({ error: 'Invalid path' });
+    return;
+  }
+
   const filePath = path.join(process.cwd(), 'data', 'screenshots', scanId, filename);
 
   if (!fs.existsSync(filePath)) {
@@ -56,12 +66,12 @@ app.get('/screenshots/:scanId/:filename', (req, res) => {
   res.setHeader('Content-Type', 'image/png');
   res.setHeader('Cache-Control', 'public, max-age=86400');
   const stream = fs.createReadStream(filePath);
-  stream.pipe(res);
   stream.on('error', () => {
     if (!res.headersSent) {
       res.status(500).json({ error: 'Error reading screenshot' });
     }
   });
+  stream.pipe(res);
 });
 
 // 404 handler
