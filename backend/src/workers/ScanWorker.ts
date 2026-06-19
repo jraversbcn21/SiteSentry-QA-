@@ -72,33 +72,37 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
     }
 
     // --- Captura de screenshots ---
-    const screenshotDir = path.join(process.cwd(), 'data', 'screenshots', scanId);
-    fs.mkdirSync(screenshotDir, { recursive: true });
-
-    // Full-page screenshot
     try {
-      const fullPath = path.join(screenshotDir, 'full.png');
-      await analysis.page.screenshot({ path: fullPath, fullPage: true, type: 'png' });
-      console.log('[ScanWorker] Full-page screenshot capturado');
-    } catch (err) {
-      console.warn('[ScanWorker] No se pudo capturar full-page screenshot:', err);
-    }
+      const screenshotDir = path.join(process.cwd(), 'data', 'screenshots', scanId);
+      fs.mkdirSync(screenshotDir, { recursive: true });
 
-    // Element screenshots for HIGH severity issues with selectors
-    for (const issue of allIssues) {
-      if (issue.severity !== 'HIGH') continue;
-      const selector = issue.metadata?.selector as string | undefined;
-      if (!selector) continue;
-
+      // Full-page screenshot
       try {
-        const el = analysis.page.locator(selector).first();
-        const fileName = `${(issue as any).id}.png`;
-        const filePath = path.join(screenshotDir, fileName);
-        await el.screenshot({ path: filePath, type: 'png' });
-        issue.screenshot_path = `${scanId}/${fileName}`;
-      } catch {
-        // Elemento no encontrado o no visible — se omite el screenshot sin error
+        const fullPath = path.join(screenshotDir, 'full.png');
+        await analysis.page.screenshot({ path: fullPath, fullPage: true, type: 'png' });
+        console.log('[ScanWorker] Full-page screenshot capturado');
+      } catch (err) {
+        console.warn('[ScanWorker] No se pudo capturar full-page screenshot:', err);
       }
+
+      // Element screenshots for HIGH severity issues with selectors
+      for (const issue of allIssues) {
+        if (issue.severity !== 'HIGH') continue;
+        const selector = issue.metadata?.selector as string | undefined;
+        if (!selector) continue;
+
+        try {
+          const el = analysis.page.locator(selector).first();
+          const fileName = `${(issue as any).id}.png`;
+          const filePath = path.join(screenshotDir, fileName);
+          await el.screenshot({ path: filePath, type: 'png' });
+          issue.screenshot_path = `${scanId}/${fileName}`;
+        } catch {
+          // Elemento no encontrado o no visible — se omite el screenshot sin error
+        }
+      }
+    } catch (err) {
+      console.warn('[ScanWorker] No se pudo crear directorio de screenshots, omitiendo capturas:', err);
     }
 
     await analyzer.close(analysis.page);
