@@ -30,6 +30,7 @@ export interface Issue {
   sourceUrl?: string;
   description: string;
   metadata?: Record<string, unknown>;
+  screenshot_path?: string | null;
 }
 
 export interface ScanRequest {
@@ -64,6 +65,7 @@ export interface ReportResponse {
   createdAt: string;
   completedAt?: string;
   issues: Issue[];
+  fullPageScreenshot?: string | null;
   summary: {
     total: number;
     byType: Record<IssueType, number>;
