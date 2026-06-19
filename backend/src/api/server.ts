@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
+import fs from 'fs';
 import { scanRoutes } from './routes/scan';
 import { reportsRoutes } from './routes/reports';
+import '../workers/index';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -39,6 +42,27 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api/scan', scanRoutes);
 app.use('/api/reports', reportsRoutes);
+
+// Screenshots serving
+app.get('/screenshots/:scanId/:filename', (req, res) => {
+  const { scanId, filename } = req.params;
+  const filePath = path.join(process.cwd(), 'data', 'screenshots', scanId, filename);
+
+  if (!fs.existsSync(filePath)) {
+    res.status(404).json({ error: 'Screenshot not found' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  const stream = fs.createReadStream(filePath);
+  stream.pipe(res);
+  stream.on('error', () => {
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error reading screenshot' });
+    }
+  });
+});
 
 // 404 handler
 app.use((_req, res) => {
