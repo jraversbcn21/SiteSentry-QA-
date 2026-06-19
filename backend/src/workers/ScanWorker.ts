@@ -1,24 +1,31 @@
-import { Job } from 'bullmq';
+import { randomUUID } from 'crypto';
 import { chromium } from 'playwright';
-import { Prisma } from '@prisma/client';
-import { prisma } from '../database/client';
-import { ScanStatus } from '../types';
+import { getDb } from '../database/db';
+import { ScanStatus, IssueType, IssueSeverity } from '../types';
 import { PageAnalyzer } from '../analyzer/PageAnalyzer';
 import { checkers } from '../checkers';
+import path from 'path';
+import fs from 'fs';
 
-export async function processScanJob(job: Job) {
+interface JobData {
+  scanId: string;
+  url: string;
+  config: { timeout?: number };
+}
+
+export async function processScanJob(job: { data: JobData; updateProgress?: (progress: object) => void }) {
   const { scanId, url, config } = job.data;
   let browser = null;
+  const db = getDb();
 
   try {
-    await prisma.scan.update({
-      where: { id: scanId },
-      data: { status: ScanStatus.RUNNING },
-    });
+    db.prepare('UPDATE scans SET status = ? WHERE id = ?').run(ScanStatus.RUNNING, scanId);
 
     console.log(`[ScanWorker] Analizando pagina: ${url} (scan ${scanId})`);
 
-    await job.updateProgress({ phase: 'launching_browser' }).catch(() => {});
+    if (job.updateProgress) {
+      try { job.updateProgress({ phase: 'launching_browser' }); } catch {}
+    }
 
     browser = await chromium.launch({
       headless: true,
@@ -26,12 +33,13 @@ export async function processScanJob(job: Job) {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-http2', // ✅ CAMBIO APLICADO — Forzar HTTP/1.1 para evitar ERR_HTTP2_PROTOCOL_ERROR
+        '--disable-http2',
       ],
     });
 
-    // Analyze the single page
-    await job.updateProgress({ phase: 'loading_page' }).catch(() => {});
+    if (job.updateProgress) {
+      try { job.updateProgress({ phase: 'loading_page' }); } catch {}
+    }
 
     const analyzer = new PageAnalyzer(browser, config.timeout || 30000);
     const analysis = await analyzer.analyze(url);
@@ -42,8 +50,9 @@ export async function processScanJob(job: Job) {
       `Consola: ${analysis.consoleErrors.length} errores.`
     );
 
-    // Run all checkers against the analyzed page
-    await job.updateProgress({ phase: 'running_checks' }).catch(() => {});
+    if (job.updateProgress) {
+      try { job.updateProgress({ phase: 'running_checks' }); } catch {}
+    }
 
     const allIssues: import('../types').Issue[] = [];
 
@@ -57,42 +66,81 @@ export async function processScanJob(job: Job) {
       }
     }
 
-    // Close the page
-    await analyzer.close(analysis.page);
+    // Asignar IDs a issues antes de screenshots (necesario para nombres de archivo)
+    for (const issue of allIssues) {
+      (issue as any).id = randomUUID();
+    }
 
-    // Save issues to DB
-    await job.updateProgress({ phase: 'saving_results' }).catch(() => {});
+    // --- Captura de screenshots ---
+    const screenshotDir = path.join(process.cwd(), 'data', 'screenshots', scanId);
+    fs.mkdirSync(screenshotDir, { recursive: true });
 
-    if (allIssues.length > 0) {
-      const chunks = chunkArray(allIssues, 100);
-      for (const chunk of chunks) {
-        await prisma.issue.createMany({
-          data: chunk.map((issue) => ({
-            scanId,
-            type: issue.type,
-            severity: issue.severity,
-            url: issue.url,
-            sourceUrl: issue.sourceUrl || null,
-            description: issue.description,
-            metadata: (issue.metadata as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-          })),
-          skipDuplicates: true,
-        });
+    // Full-page screenshot
+    try {
+      const fullPath = path.join(screenshotDir, 'full.png');
+      await analysis.page.screenshot({ path: fullPath, fullPage: true, type: 'png' });
+      console.log('[ScanWorker] Full-page screenshot capturado');
+    } catch (err) {
+      console.warn('[ScanWorker] No se pudo capturar full-page screenshot:', err);
+    }
+
+    // Element screenshots for HIGH severity issues with selectors
+    for (const issue of allIssues) {
+      if (issue.severity !== 'HIGH') continue;
+      const selector = issue.metadata?.selector as string | undefined;
+      if (!selector) continue;
+
+      try {
+        const el = analysis.page.locator(selector).first();
+        const fileName = `${(issue as any).id}.png`;
+        const filePath = path.join(screenshotDir, fileName);
+        await el.screenshot({ path: filePath, type: 'png' });
+        issue.screenshot_path = `${scanId}/${fileName}`;
+      } catch {
+        // Elemento no encontrado o no visible — se omite el screenshot sin error
       }
     }
 
-    // Mark scan as completed
-    await prisma.scan.update({
-      where: { id: scanId },
-      data: {
-        status: ScanStatus.COMPLETED,
-        completedAt: new Date(),
-      },
-    });
+    await analyzer.close(analysis.page);
+
+    if (job.updateProgress) {
+      try { job.updateProgress({ phase: 'saving_results' }); } catch {}
+    }
+
+    if (allIssues.length > 0) {
+      const insertIssue = db.prepare(`
+        INSERT OR IGNORE INTO issues (id, scan_id, type, severity, url, source_url, description, metadata, screenshot_path, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const insertMany = db.transaction((issues: import('../types').Issue[]) => {
+        for (const issue of issues) {
+          insertIssue.run(
+            (issue as any).id,
+            scanId,
+            issue.type,
+            issue.severity,
+            issue.url,
+            issue.sourceUrl || null,
+            issue.description,
+            issue.metadata ? JSON.stringify(issue.metadata) : null,
+            issue.screenshot_path || null,
+            new Date().toISOString()
+          );
+        }
+      });
+
+      insertMany(allIssues);
+    }
+
+    db.prepare('UPDATE scans SET status = ?, completed_at = ? WHERE id = ?').run(
+      ScanStatus.COMPLETED,
+      new Date().toISOString(),
+      scanId
+    );
 
     console.log(`[ScanWorker] Scan ${scanId} completado. ${allIssues.length} issues encontrados.`);
   } catch (error) {
-    // ✅ CAMBIO APLICADO — Detectar bloqueo anti-bot HTTP/2 y guardar issue informativo en vez de fallar
     const errorMsg = error instanceof Error ? error.message : String(error);
     const isHttp2Blocked = errorMsg.includes('ERR_HTTP2_PROTOCOL_ERROR') ||
                            errorMsg.includes('ERR_HTTP2_INADEQUATE_TRANSPORT_SECURITY') ||
@@ -101,45 +149,47 @@ export async function processScanJob(job: Job) {
     if (isHttp2Blocked) {
       console.warn(`[ScanWorker] Acceso bloqueado por proteccion anti-bot en ${url} (scan ${scanId}): ${errorMsg}`);
 
-      await prisma.issue.create({
-        data: {
-          scanId,
-          type: 'FAILED_API' as import('../types').IssueType,
-          severity: 'HIGH' as import('../types').IssueSeverity,
-          url,
-          sourceUrl: url,
-          description: `Acceso bloqueado: El sitio bloqueo el acceso al analizador mediante proteccion anti-bot. ` +
-                       `El servidor rechazo la conexion a nivel de protocolo HTTP/2. ` +
-                       `Esto es comun en sitios con proteccion avanzada (Akamai, Cloudflare, PerimeterX).`,
-          metadata: {
-            errorType: 'ANTI_BOT_BLOCK',
-            originalError: errorMsg.substring(0, 300),
-            recomendacion: 'Este sitio requiere acceso desde un navegador real. No es un error del analizador.',
-          } as Prisma.InputJsonValue,
-        },
-      });
+      db.prepare(`
+        INSERT INTO issues (id, scan_id, type, severity, url, source_url, description, metadata, screenshot_path, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        randomUUID(),
+        scanId,
+        IssueType.FAILED_API,
+        IssueSeverity.HIGH,
+        url,
+        url,
+        `Acceso bloqueado: El sitio bloqueo el acceso al analizador mediante proteccion anti-bot. ` +
+        `El servidor rechazo la conexion a nivel de protocolo HTTP/2. ` +
+        `Esto es comun en sitios con proteccion avanzada (Akamai, Cloudflare, PerimeterX).`,
+        JSON.stringify({
+          errorType: 'ANTI_BOT_BLOCK',
+          originalError: errorMsg.substring(0, 300),
+          recomendacion: 'Este sitio requiere acceso desde un navegador real. No es un error del analizador.',
+        }),
+        null,
+        new Date().toISOString()
+      );
 
-      await prisma.scan.update({
-        where: { id: scanId },
-        data: {
-          status: ScanStatus.COMPLETED,
-          completedAt: new Date(),
-        },
-      });
+      db.prepare('UPDATE scans SET status = ?, completed_at = ? WHERE id = ?').run(
+        ScanStatus.COMPLETED,
+        new Date().toISOString(),
+        scanId
+      );
 
       console.log(`[ScanWorker] Scan ${scanId} completado con issue de acceso bloqueado.`);
-      return; // ✅ No lanza error, el scan se completa con el issue informativo
+      return;
     }
 
     console.error(`[ScanWorker] Error fatal en scan ${scanId}:`, error);
 
-    await prisma.scan.update({
-      where: { id: scanId },
-      data: {
-        status: ScanStatus.FAILED,
-        completedAt: new Date(),
-      },
-    }).catch(() => {});
+    try {
+      db.prepare('UPDATE scans SET status = ?, completed_at = ? WHERE id = ?').run(
+        ScanStatus.FAILED,
+        new Date().toISOString(),
+        scanId
+      );
+    } catch {}
 
     throw error;
   } finally {
@@ -147,12 +197,4 @@ export async function processScanJob(job: Job) {
       await browser.close().catch(() => {});
     }
   }
-}
-
-function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
 }
