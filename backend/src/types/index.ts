@@ -33,6 +33,7 @@ export interface Issue {
   sourceUrl?: string;
   description: string;
   metadata?: Record<string, unknown>;
+  screenshot_path?: string;
 }
 
 export interface ScanConfig {
