@@ -66,6 +66,7 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       source_url: string | null;
       description: string;
       metadata: string | null;
+      screenshot_path: string | null;
       created_at: string;
     }>;
 
@@ -78,7 +79,7 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       sourceUrl: i.source_url,
       description: i.description,
       metadata: i.metadata ? JSON.parse(i.metadata) : null,
-      screenshot_path: (i as any).screenshot_path || null,
+      screenshot_path: i.screenshot_path || null,
       createdAt: i.created_at,
     }));
 

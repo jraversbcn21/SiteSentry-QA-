@@ -98,7 +98,7 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
           await el.screenshot({ path: filePath, type: 'png' });
           issue.screenshot_path = `${scanId}/${fileName}`;
         } catch {
-          // Elemento no encontrado o no visible — se omite el screenshot sin error
+          console.debug(`[ScanWorker] Elemento no encontrado para screenshot: ${selector}`);
         }
       }
     } catch (err) {
