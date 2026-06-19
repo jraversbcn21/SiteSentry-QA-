@@ -20,7 +20,7 @@ export class BrokenResourcesChecker implements IChecker {
           url: event.url,
           sourceUrl: url,
           description: `${this.resourceLabel(event.resourceType)} no carga: ${event.failureText}`,
-          metadata: { resourceType: event.resourceType, error: event.failureText },
+          metadata: { resourceType: event.resourceType, error: event.failureText, timing: event.timing, mimeType: event.mimeType || undefined, size: event.size || undefined },
         });
       } else if (event.status !== null && event.status >= 400) {
         issues.push({
@@ -29,7 +29,7 @@ export class BrokenResourcesChecker implements IChecker {
           url: event.url,
           sourceUrl: url,
           description: `${this.resourceLabel(event.resourceType)} devuelve error ${event.status}`,
-          metadata: { resourceType: event.resourceType, statusCode: event.status },
+          metadata: { resourceType: event.resourceType, statusCode: event.status, timing: event.timing, mimeType: event.mimeType || undefined, size: event.size || undefined },
         });
       }
     }
@@ -50,13 +50,24 @@ export class BrokenResourcesChecker implements IChecker {
     for (const img of brokenImages) {
       const alreadyReported = issues.some((i) => i.url === img.src);
       if (alreadyReported) continue;
+      const imgEvent = networkEvents.find((e) => e.url === img.src);
       issues.push({
         type: IssueType.BROKEN_RESOURCE,
         severity: IssueSeverity.MEDIUM,
         url: img.src,
         sourceUrl: url,
         description: `Imagen no renderizada: ${img.alt || img.src.substring(img.src.lastIndexOf('/') + 1)}`,
-        metadata: { alt: img.alt, width: img.width, height: img.height },
+        metadata: {
+          resourceType: 'image',
+          alt: img.alt,
+          width: img.width,
+          height: img.height,
+          selector: 'img[src="' + img.src.replace(/"/g, '\\"') + '"]',
+          statusCode: imgEvent?.status ?? null,
+          timing: imgEvent?.timing,
+          mimeType: imgEvent?.mimeType || undefined,
+          size: imgEvent?.size || undefined,
+        },
       });
     }
 
@@ -87,7 +98,14 @@ export class BrokenResourcesChecker implements IChecker {
           url: bgUrl,
           sourceUrl: url,
           description: `Imagen de fondo no carga: ${event.failed ? event.failureText : `HTTP ${event.status}`}`,
-          metadata: { resourceType: 'background-image' },
+          metadata: {
+            resourceType: 'background-image',
+            statusCode: event.status,
+            error: event.failureText || undefined,
+            timing: event.timing,
+            mimeType: event.mimeType || undefined,
+            size: event.size || undefined,
+          },
         });
       }
     }

@@ -45,7 +45,7 @@ export class ContentChecker implements IChecker {
         severity: IssueSeverity.HIGH,
         url,
         description: `Contenedor vacio que deberia tener contenido: ${identifier} (${container.height}px de alto)`,
-        metadata: { tag: container.tag, className: container.className, id: container.id, height: container.height },
+        metadata: { tag: container.tag, className: container.className, id: container.id, height: container.height, selector: container.selector },
       });
     }
 
@@ -80,7 +80,7 @@ export class ContentChecker implements IChecker {
       });
     }
 
-    const hiddenWithContent: { mainHasContent: boolean; tag?: string; id?: string; className?: string } = await page.evaluate(`(() => {
+    const hiddenWithContent: { mainHasContent: boolean; tag?: string; id?: string; className?: string; selector?: string } = await page.evaluate(`(() => {
       var containers = document.querySelectorAll('main, [role="main"], .content, #content, #app, #root');
       if (containers.length === 0) return { mainHasContent: true };
       for (var i = 0; i < containers.length; i++) {
@@ -90,7 +90,8 @@ export class ContentChecker implements IChecker {
             mainHasContent: false,
             tag: containers[i].tagName.toLowerCase(),
             id: containers[i].id || '',
-            className: (containers[i].className && typeof containers[i].className === 'string') ? containers[i].className.substring(0, 40) : ''
+            className: (containers[i].className && typeof containers[i].className === 'string') ? containers[i].className.substring(0, 40) : '',
+            selector: containers[i].id ? '#' + containers[i].id : containers[i].tagName.toLowerCase()
           };
         }
       }
@@ -103,7 +104,7 @@ export class ContentChecker implements IChecker {
         severity: IssueSeverity.HIGH,
         url,
         description: `Contenedor principal practicamente vacio: <${hiddenWithContent.tag}> (posible fallo de renderizado)`,
-        metadata: { tag: hiddenWithContent.tag, id: hiddenWithContent.id, className: hiddenWithContent.className },
+        metadata: { tag: hiddenWithContent.tag, id: hiddenWithContent.id, className: hiddenWithContent.className, selector: hiddenWithContent.selector || hiddenWithContent.tag },
       });
     }
 

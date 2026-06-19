@@ -33,7 +33,7 @@ export class LazyLoadChecker implements IChecker {
         severity: IssueSeverity.MEDIUM,
         url,
         description: `Imagen lazy-load no se cargo despues del scroll: ${img.alt || img.dataSrc || img.src}`,
-        metadata: { src: img.src, dataSrc: img.dataSrc, width: img.width, height: img.height },
+        metadata: { src: img.src, dataSrc: img.dataSrc, width: img.width, height: img.height, selector: img.src ? 'img[src="' + img.src.replace(/"/g, '\\"') + '"]' : 'img[loading="lazy"]' },
       });
     }
 
@@ -90,7 +90,7 @@ export class LazyLoadChecker implements IChecker {
         severity: IssueSeverity.MEDIUM,
         url,
         description: `Imagen muestra placeholder en vez de contenido real (${img.naturalWidth}px natural, ${img.displayWidth}px display)`,
-        metadata: { src: img.src, naturalWidth: img.naturalWidth, displayWidth: img.displayWidth },
+        metadata: { src: img.src, naturalWidth: img.naturalWidth, displayWidth: img.displayWidth, selector: 'img[src="' + img.src.replace(/"/g, '\\"') + '"]' },
       });
     }
 
