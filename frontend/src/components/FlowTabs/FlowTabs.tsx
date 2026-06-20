@@ -8,7 +8,7 @@ interface FlowTabsProps {
   onStepChange: (index: number) => void;
 }
 
-var STEP_ICONS: Record<string, string> = {
+const STEP_ICONS: Record<string, string> = {
   navigate: '🌐',
   click: '🖱️',
   type: '⌨️',
@@ -20,13 +20,13 @@ var STEP_ICONS: Record<string, string> = {
 };
 
 export default function FlowTabs({ steps, activeStepIndex, allIssuesCount, onStepChange }: FlowTabsProps) {
-  var icon = function(action: string) { return STEP_ICONS[action] || '▶️'; };
+  const icon = function(action: string) { return STEP_ICONS[action] || '▶️'; };
 
   return (
     <div className="flow-tabs">
       {steps.map(function(step) {
-        var isActive = activeStepIndex === step.index;
-        var label = icon(step.action) + ' ' + step.label;
+        const isActive = activeStepIndex === step.index;
+        const label = icon(step.action) + ' ' + step.label;
         return (
           <button key={step.index} className={'flow-tab' + (isActive ? ' active' : '')} onClick={function() { onStepChange(step.index); }}>
             <span>{label}</span>

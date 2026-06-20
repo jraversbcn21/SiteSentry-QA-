@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import URLInput from '../components/URLInput/URLInput';
 import ScanProgress from '../components/ScanProgress/ScanProgress';
+import FlowEditor from '../components/FlowEditor/FlowEditor';
 import { scanApi } from '../services/api';
-import { ScanResponse, ScanStatus, ScanStatusResponse } from '../types';
+import { ScanStatus } from '../types';
+import type { FlowDefinition, FlowStep, ScanResponse, ScanStatusResponse } from '../types';
 import './Home.css';
 
 export default function Home() {
@@ -13,9 +15,14 @@ export default function Home() {
   const [recentScans, setRecentScans] = useState<ScanResponse[]>([]);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState('');
+  const [savedFlows, setSavedFlows] = useState<FlowDefinition[]>([]);
+  const [selectedFlowId, setSelectedFlowId] = useState<string>('');
+  const [showFlowEditor, setShowFlowEditor] = useState(false);
+  const [inlineFlow, setInlineFlow] = useState<{ name: string; steps: FlowStep[] } | undefined>();
 
   useEffect(() => {
     loadRecentScans();
+    scanApi.getFlows().then(setSavedFlows).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -58,7 +65,13 @@ export default function Home() {
     setScanStatus(null);
 
     try {
-      const scan = await scanApi.startScan({ url });
+      const scanRequest: any = { url };
+      if (inlineFlow) {
+        scanRequest.flow = inlineFlow;
+      } else if (selectedFlowId) {
+        scanRequest.flowId = selectedFlowId;
+      }
+      const scan = await scanApi.startScan(scanRequest);
       setCurrentScan(scan);
       setScanStatus({
         id: scan.id,
@@ -111,6 +124,24 @@ export default function Home() {
         <section className="home-scan-section">
           {!isScanning ? (
             <>
+              <div className="flow-selector">
+                <select
+                  value={selectedFlowId}
+                  onChange={(e) => {
+                    setSelectedFlowId(e.target.value);
+                    setInlineFlow(undefined);
+                  }}
+                  className="flow-select"
+                >
+                  <option value="">Sin flujo (scan normal)</option>
+                  {savedFlows.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name} ({f.steps.length} pasos)</option>
+                  ))}
+                </select>
+                <button className="new-flow-btn" onClick={() => setShowFlowEditor(true)}>
+                  + Nuevo flujo
+                </button>
+              </div>
               <URLInput onSubmit={handleStartScan} isLoading={isStarting} />
               {error && (
                 <div className="home-error">
@@ -198,6 +229,22 @@ export default function Home() {
       <footer className="home-footer">
         <p>SiteSentry QA &copy; {new Date().getFullYear()} — Herramienta de QA Funcional para Pruebas Web</p>
       </footer>
+
+      {showFlowEditor && (
+        <div className="modal-overlay" onClick={() => setShowFlowEditor(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <FlowEditor
+              onSave={(flow) => {
+                setInlineFlow(flow);
+                setSelectedFlowId('');
+                setShowFlowEditor(false);
+                scanApi.getFlows().then(setSavedFlows).catch(() => {});
+              }}
+              onCancel={() => setShowFlowEditor(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

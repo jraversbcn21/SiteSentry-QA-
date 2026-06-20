@@ -3,6 +3,7 @@ import { ReportResponse, Issue, IssueType, IssueSeverity, ScanStatus, VisualDiff
 import ErrorGroup from '../ErrorGroup/ErrorGroup';
 import ScreenshotThumb from '@/components/ScreenshotThumb/ScreenshotThumb';
 import VisualDiffViewer from '@/components/VisualDiffViewer/VisualDiffViewer';
+import FlowTabs from '@/components/FlowTabs/FlowTabs';
 import { scanApi } from '../../services/api';
 import './ReportViewer.css';
 
@@ -99,6 +100,15 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
   const [filterSeverity, setFilterSeverity] = useState<IssueSeverity | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [baselineLoading, setBaselineLoading] = useState(false);
+  const [activeStepIndex, setActiveStepIndex] = useState(-1);
+
+  const currentStepIssues = activeStepIndex === -1
+    ? report.issues
+    : report.issues.filter(function(i) { return i.stepIndex === activeStepIndex; });
+
+  const currentStepResult = activeStepIndex >= 0
+    ? report.steps?.find(function(s) { return s.index === activeStepIndex; })
+    : undefined;
 
   const { elementDiffsMap, fullPageDiff } = useMemo(() => {
     const map: Record<string, VisualDiff> = {};
@@ -127,7 +137,7 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
     }
   }
 
-  const filteredIssues = report.issues.filter((issue) => {
+  const filteredIssues = currentStepIssues.filter((issue) => {
     if (filterType !== 'ALL' && issue.type !== filterType) return false;
     if (filterSeverity !== 'ALL' && issue.severity !== filterSeverity) return false;
     if (searchQuery && !issue.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -199,6 +209,15 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
         </div>
       </div>
 
+      {report.flow && report.steps && (
+        <FlowTabs
+          steps={report.steps}
+          activeStepIndex={activeStepIndex}
+          allIssuesCount={report.summary.total}
+          onStepChange={setActiveStepIndex}
+        />
+      )}
+
       <div className="summary-cards">
         <div className="summary-card total">
           <span className="summary-card-number">{report.summary.total}</span>
@@ -218,7 +237,12 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
         </div>
       </div>
 
-      {report.fullPageScreenshot && (
+      {currentStepResult?.fullPageScreenshot ? (
+        <div className="report-screenshot">
+          <ScreenshotThumb path={currentStepResult.fullPageScreenshot} alt={'Screenshot del paso ' + activeStepIndex} maxHeight={300} />
+          <span className="report-screenshot-label">Screenshot del paso: {currentStepResult.label}</span>
+        </div>
+      ) : (activeStepIndex === -1 && report.fullPageScreenshot && (
         <div className="report-screenshot">
           <ScreenshotThumb
             path={report.fullPageScreenshot}
@@ -227,7 +251,7 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
           />
           <span className="report-screenshot-label">Screenshot completo de la pagina</span>
         </div>
-      )}
+      ))}
 
       {(fullPageDiff || report.baselineInfo) && (
         <div className="report-section visual-regression-section">

@@ -1,22 +1,22 @@
 import type { FlowStep } from '../types';
 
-var GOTO_RE = /page\.goto\(['"]([^'"]+)['"]\)/g;
-var CLICK_RE = /page\.click\(['"]([^'"]+)['"]\)/g;
-var FILL_RE = /page\.fill\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/g;
-var WAIT_RE = /page\.waitForTimeout\((\d+)\)/g;
-var SELECTOPTION_RE = /page\.selectOption\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/g;
-var HOVER_RE = /page\.hover\(['"]([^'"]+)['"]\)/g;
-var PRESS_RE = /page\.press\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/g;
+const GOTO_RE = /page\.goto\(['"]([^'"]+)['"]\)/g;
+const CLICK_RE = /page\.click\(['"]([^'"]+)['"]\)/g;
+const FILL_RE = /page\.fill\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/g;
+const WAIT_RE = /page\.waitForTimeout\((\d+)\)/g;
+const SELECTOPTION_RE = /page\.selectOption\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/g;
+const HOVER_RE = /page\.hover\(['"]([^'"]+)['"]\)/g;
+const PRESS_RE = /page\.press\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/g;
 
 export function parseCodegenScript(script: string): FlowStep[] {
-  var steps: FlowStep[] = [];
-  var lines = script.split('\n');
+  const steps: FlowStep[] = [];
+  const lines = script.split('\n');
 
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
     if (!line || line.startsWith('//') || line.startsWith('import ') || line.startsWith('const ') || line.startsWith('(async')) continue;
 
-    var match: RegExpExecArray | null;
+    let match: RegExpExecArray | null;
 
     GOTO_RE.lastIndex = 0;
     if ((match = GOTO_RE.exec(line)) !== null) {

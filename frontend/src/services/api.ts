@@ -36,17 +36,17 @@ export const scanApi = {
   },
 
   getFlows: async (): Promise<FlowDefinition[]> => {
-    var response = await api.get<FlowDefinition[]>('/flows');
+    const response = await api.get<FlowDefinition[]>('/flows');
     return response.data;
   },
 
   getFlow: async (id: string): Promise<FlowDefinition> => {
-    var response = await api.get<FlowDefinition>('/flows/' + id);
+    const response = await api.get<FlowDefinition>('/flows/' + id);
     return response.data;
   },
 
   createFlow: async (name: string, steps: FlowStep[]): Promise<FlowDefinition> => {
-    var response = await api.post<FlowDefinition>('/flows', { name, steps });
+    const response = await api.post<FlowDefinition>('/flows', { name, steps });
     return response.data;
   },
 

@@ -10,7 +10,7 @@ interface FlowEditorProps {
   onCancel: () => void;
 }
 
-var ACTION_OPTIONS = [
+const ACTION_OPTIONS = [
   { value: 'navigate', label: '🌐 Navegar' },
   { value: 'click', label: '🖱️ Click' },
   { value: 'type', label: '⌨️ Escribir' },
@@ -22,18 +22,18 @@ var ACTION_OPTIONS = [
 ];
 
 export default function FlowEditor({ editFlow, onSave, onCancel }: FlowEditorProps) {
-  var [name, setName] = useState(editFlow?.name || '');
-  var [steps, setSteps] = useState<FlowStep[]>(editFlow?.steps || []);
-  var [codegenScript, setCodegenScript] = useState('');
-  var [saving, setSaving] = useState(false);
+  const [name, setName] = useState(editFlow?.name || '');
+  const [steps, setSteps] = useState<FlowStep[]>(editFlow?.steps || []);
+  const [codegenScript, setCodegenScript] = useState('');
+  const [saving, setSaving] = useState(false);
 
   function handleConvert() {
-    var parsed = parseCodegenScript(codegenScript);
+    const parsed = parseCodegenScript(codegenScript);
     if (parsed.length > 0) setSteps(parsed);
   }
 
   function handleStepChange(index: number, field: string, value: string | number | undefined) {
-    var newSteps = steps.map(function(s, i) {
+    const newSteps = steps.map(function(s, i) {
       if (i === index) return { ...s, [field]: value };
       return s;
     });
@@ -50,7 +50,7 @@ export default function FlowEditor({ editFlow, onSave, onCancel }: FlowEditorPro
 
   async function handleSave() {
     if (!name.trim() || steps.length === 0) return;
-    var flow = { name: name.trim(), steps };
+    const flow = { name: name.trim(), steps };
     if (editFlow?.id) {
       setSaving(true);
       try {
@@ -61,7 +61,7 @@ export default function FlowEditor({ editFlow, onSave, onCancel }: FlowEditorPro
   }
 
   function renderStepFields(step: FlowStep, index: number) {
-    var fields: JSX.Element[] = [];
+    const fields: JSX.Element[] = [];
     if (step.action === 'navigate') {
       fields.push(<input key="url" className="fe-step-input" placeholder="URL" value={step.url || ''} onChange={function(e) { handleStepChange(index, 'url', e.target.value); }} />);
     } else if (step.action === 'click' || step.action === 'hover') {
