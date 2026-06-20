@@ -1,0 +1,18 @@
+.flow-editor { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.flow-editor h3 { margin: 0 0 12px; font-size: 16px; }
+.fe-name-input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; margin-bottom: 12px; }
+.fe-codegen-section { margin-bottom: 16px; }
+.fe-codegen-section label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+.fe-codegen-textarea { width: 100%; min-height: 120px; font-family: monospace; font-size: 12px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: vertical; }
+.fe-convert-btn { margin-top: 8px; padding: 6px 14px; background: #3b82f6; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.fe-convert-btn:hover { background: #2563eb; }
+.fe-steps-list { list-style: none; padding: 0; margin: 0; }
+.fe-step-item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 6px; background: #f8fafc; }
+.fe-step-index { font-size: 11px; color: #94a3b8; min-width: 24px; }
+.fe-step-action-select { padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; min-width: 100px; }
+.fe-step-input { padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; flex: 1; min-width: 0; }
+.fe-step-delete { padding: 4px 8px; background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.fe-add-step { margin-top: 8px; padding: 6px 14px; background: #f1f5f9; color: #475569; border: 1px dashed #cbd5e1; border-radius: 4px; cursor: pointer; font-size: 13px; width: 100%; }
+.fe-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+.fe-save-btn { padding: 8px 20px; background: #16a34a; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.fe-cancel-btn { padding: 8px 20px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; font-size: 14px; }
