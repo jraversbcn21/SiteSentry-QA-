@@ -1,0 +1,15 @@
+.settings-page { max-width: 500px; margin: 60px auto; padding: 24px; }
+.settings-page h2 { font-size: 20px; margin: 0 0 8px; }
+.settings-page p { color: #64748b; font-size: 14px; margin: 0 0 24px; }
+.settings-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.settings-card h3 { font-size: 15px; margin: 0 0 4px; }
+.settings-card .card-desc { font-size: 13px; color: #64748b; margin: 0 0 12px; }
+.settings-field { margin-bottom: 12px; }
+.settings-field label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.settings-field input, .settings-field select { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
+.settings-save { padding: 8px 20px; background: #3b82f6; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.settings-save:hover { background: #2563eb; }
+.settings-save:disabled { opacity: 0.5; cursor: default; }
+.settings-saved { color: #16a34a; font-size: 13px; margin-left: 10px; }
+.settings-back { display: inline-block; margin-bottom: 16px; color: #3b82f6; text-decoration: none; font-size: 14px; }
+.settings-back:hover { text-decoration: underline; }

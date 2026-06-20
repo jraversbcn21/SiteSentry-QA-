@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import URLInput from '../components/URLInput/URLInput';
 import ScanProgress from '../components/ScanProgress/ScanProgress';
 import FlowEditor from '../components/FlowEditor/FlowEditor';
@@ -107,9 +107,12 @@ export default function Home() {
             <span className="home-logo-icon">🔍</span>
             <div>
               <h1>SiteSentry QA</h1>
-              <p>Análisis automatizado de calidad web</p>
+              <p>Analisis automatizado de calidad web</p>
             </div>
           </div>
+          <Link to="/settings" className="home-settings-link" title="Ajustes">
+            ⚙️
+          </Link>
         </div>
       </header>
 
