@@ -120,7 +120,7 @@ export default function Home() {
         <section className="home-hero">
           <h2>Analiza cualquier pagina web al instante</h2>
           <p className="home-subtitle">
-            Detecta recursos rotos, APIs fallidas, problemas de interactividad, contenido vacio y fallos de carga en una sola pagina.
+            Ejecuta 9 controles automatizados: recursos rotos, APIs fallidas, interactividad, contenido vacio, carga diferida, formularios/modales, errores de consola, rendimiento y accesibilidad WCAG. Todo en una sola pagina.
           </p>
         </section>
 
@@ -195,6 +195,55 @@ export default function Home() {
               <span className="feature-icon">📋</span>
               <h4>Formularios/Modales</h4>
               <p>Formularios sin envio, modales bloqueantes, banners de cookies</p>
+            </div>
+            <div className="feature-card">
+              <span className="feature-icon">🐛</span>
+              <h4>Errores de Consola</h4>
+              <p>Errores JS, excepciones no capturadas, fallos CORS en runtime</p>
+            </div>
+            <div className="feature-card">
+              <span className="feature-icon">⚡</span>
+              <h4>Rendimiento</h4>
+              <p>TTFB, DOMContentLoaded, carga completa, nodos DOM y recursos</p>
+            </div>
+            <div className="feature-card">
+              <span className="feature-icon">♿</span>
+              <h4>Accesibilidad</h4>
+              <p>Validacion WCAG 2.0 A/AA y 2.1 A/AA con axe-core</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="home-capabilities">
+          <h3>Funcionalidades</h3>
+          <div className="home-capabilities-grid">
+            <div className="capability-card">
+              <span className="capability-icon">🔄</span>
+              <div>
+                <h4>Flujos Interactivos</h4>
+                <p>Define secuencias multi-paso: login, busqueda, formularios. Importa scripts de Playwright codegen.</p>
+              </div>
+            </div>
+            <div className="capability-card">
+              <span className="capability-icon">📸</span>
+              <div>
+                <h4>Regresion Visual</h4>
+                <p>Compara screenshots entre escaneos con pixelmatch. Detecta cambios visuales no deseados.</p>
+              </div>
+            </div>
+            <div className="capability-card">
+              <span className="capability-icon">🤖</span>
+              <div>
+                <h4>Explicaciones con IA</h4>
+                <p>Integracion con Groq LLM para explicar issues detectados con contexto tecnico.</p>
+              </div>
+            </div>
+            <div className="capability-card">
+              <span className="capability-icon">📊</span>
+              <div>
+                <h4>Exportacion de Reportes</h4>
+                <p>Descarga reportes completos en JSON y CSV para integrar con otras herramientas.</p>
+              </div>
             </div>
           </div>
         </section>

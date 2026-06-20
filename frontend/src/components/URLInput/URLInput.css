@@ -15,15 +15,15 @@
   display: flex;
   align-items: center;
   border: 2px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: white;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   overflow: hidden;
 }
 
 .url-input-wrapper:focus-within {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .url-input-wrapper.has-error {
@@ -31,7 +31,7 @@
 }
 
 .url-input-prefix {
-  padding: 0 12px;
+  padding: 0 14px;
   font-size: 1.1rem;
   background: #f8fafc;
   height: 100%;
@@ -42,13 +42,13 @@
 
 .url-input-field {
   flex: 1;
-  padding: 13px 16px;
+  padding: 14px 16px;
   font-size: 1rem;
   border: none;
   outline: none;
   background: transparent;
   color: #0f172a;
-  font-family: 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
 }
 
 .url-input-field::placeholder {
@@ -57,11 +57,11 @@
 }
 
 .url-input-submit {
-  padding: 13px 24px;
+  padding: 14px 28px;
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -69,18 +69,21 @@
   align-items: center;
   gap: 8px;
   white-space: nowrap;
-  transition: opacity 0.2s, transform 0.1s;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
   min-width: 160px;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .url-input-submit:hover:not(:disabled) {
-  opacity: 0.9;
+  opacity: 0.92;
   transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
 }
 
 .url-input-submit:disabled {
   background: #94a3b8;
+  box-shadow: none;
   cursor: not-allowed;
   transform: none;
 }

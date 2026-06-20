@@ -1,7 +1,7 @@
 .error-group {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   border: 1px solid #e2e8f0;
 }
@@ -18,7 +18,7 @@
   justify-content: space-between;
   gap: 12px;
   text-align: left;
-  transition: background 0.15s;
+  transition: background 0.2s;
 }
 
 .error-group-header:hover {
@@ -38,7 +38,7 @@
 .error-group-label {
   font-size: 1rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #0f172a;
 }
 
 .error-group-count {
@@ -46,7 +46,7 @@
   color: #475569;
   font-size: 0.78rem;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 20px;
 }
 
@@ -72,6 +72,7 @@
   font-size: 0.8rem;
   color: #94a3b8;
   margin-left: 4px;
+  transition: transform 0.2s;
 }
 
 .error-group-content {
