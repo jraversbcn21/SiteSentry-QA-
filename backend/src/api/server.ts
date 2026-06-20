@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { scanRoutes } from './routes/scan';
 import { reportsRoutes } from './routes/reports';
+import { getDb } from '../database/db';
 import '../workers/index';
 
 const app = express();
@@ -42,6 +43,44 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api/scan', scanRoutes);
 app.use('/api/reports', reportsRoutes);
+
+// Set/unset manual baseline
+app.post('/api/scans/:id/set-baseline', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isBaseline } = req.body;
+
+    if (!/^[a-f0-9-]{36}$/.test(id)) {
+      res.status(400).json({ error: 'ID de scan inválido' });
+      return;
+    }
+
+    if (typeof isBaseline !== 'boolean') {
+      res.status(400).json({ error: 'isBaseline debe ser booleano' });
+      return;
+    }
+
+    const db = getDb();
+    const scan = db.prepare('SELECT id, url FROM scans WHERE id = ?').get(id) as { id: string; url: string } | undefined;
+
+    if (!scan) {
+      res.status(404).json({ error: 'Scan no encontrado' });
+      return;
+    }
+
+    if (isBaseline) {
+      db.prepare('UPDATE scans SET is_baseline = 0 WHERE url = ? AND is_baseline = 1 AND id != ?').run(scan.url, id);
+      db.prepare('UPDATE scans SET is_baseline = 1 WHERE id = ?').run(id);
+    } else {
+      db.prepare('UPDATE scans SET is_baseline = 0 WHERE id = ?').run(id);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error setting baseline:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
 
 // Screenshots serving
 app.get('/screenshots/:scanId/:filename', (req, res) => {
