@@ -44,3 +44,48 @@ export interface IChecker {
   name: string;
   check(url: string, page: Page, networkEvents: NetworkEvent[], consoleErrors?: ConsoleEvent[]): Promise<Issue[]>;
 }
+
+export interface VisualDiff {
+  id: string;
+  diffType: 'full_page' | 'element';
+  baselineScanId: string;
+  diffPercentage: number;
+  diffImagePath: string;
+  thresholdUsed: number;
+  elementIdentifier?: string;
+  issueId?: string;
+}
+
+export interface BaselineInfo {
+  scanId: string;
+  isManual: boolean;
+  createdAt: string;
+}
+
+export interface ReportResponse {
+  id: string;
+  url: string;
+  status: ScanStatus;
+  createdAt: string;
+  completedAt?: string;
+  issues: Array<{
+    id: string;
+    scanId: string;
+    type: IssueType;
+    severity: IssueSeverity;
+    url: string;
+    sourceUrl: string | null;
+    description: string;
+    metadata: Record<string, unknown> | null;
+    screenshot_path: string | null;
+    createdAt: string;
+  }>;
+  fullPageScreenshot?: string | null;
+  visualDiffs: VisualDiff[];
+  baselineInfo: BaselineInfo | null;
+  summary: {
+    total: number;
+    byType: Record<string, number>;
+    bySeverity: Record<string, number>;
+  };
+}
