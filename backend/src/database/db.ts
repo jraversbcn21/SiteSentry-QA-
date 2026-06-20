@@ -56,5 +56,40 @@ export function getDb(): Database.Database {
     }
   }
 
+  // Migracion: agregar is_baseline a scans (Fase 2 - Visual Regression)
+  try {
+    db.exec('ALTER TABLE scans ADD COLUMN is_baseline INTEGER NOT NULL DEFAULT 0');
+  } catch (e: any) {
+    if (!e.message.includes('duplicate column name')) {
+      console.warn('Migration warning (is_baseline):', e.message);
+    }
+  }
+
+  // Migracion: crear tabla visual_diffs (Fase 2 - Visual Regression)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS visual_diffs (
+        id TEXT PRIMARY KEY,
+        scan_id TEXT NOT NULL,
+        baseline_scan_id TEXT NOT NULL,
+        diff_type TEXT NOT NULL,
+        issue_id TEXT,
+        element_identifier TEXT,
+        diff_percentage REAL NOT NULL,
+        diff_image_path TEXT,
+        threshold_used REAL NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+        FOREIGN KEY (baseline_scan_id) REFERENCES scans(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_visual_diffs_scan_id ON visual_diffs(scan_id);
+      CREATE INDEX IF NOT EXISTS idx_visual_diffs_issue_id ON visual_diffs(issue_id);
+    `);
+  } catch (e: any) {
+    if (!e.message.includes('already exists')) {
+      console.warn('Migration warning (visual_diffs):', e.message);
+    }
+  }
+
   return db;
 }
