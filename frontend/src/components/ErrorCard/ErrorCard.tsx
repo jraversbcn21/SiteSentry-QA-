@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Issue, IssueSeverity, IssueType } from '../../types';
+import { Issue, IssueSeverity, IssueType, VisualDiff } from '../../types';
 import { explainIssue } from '../../services/ai';
 import ScreenshotThumb from '@/components/ScreenshotThumb/ScreenshotThumb';
+import VisualDiffViewer from '@/components/VisualDiffViewer/VisualDiffViewer';
 import './ErrorCard.css';
 
 interface ErrorCardProps {
   issue: Issue;
+  visualDiff?: VisualDiff;
 }
 
-export default function ErrorCard({ issue }: ErrorCardProps) {
+export default function ErrorCard({ issue, visualDiff }: ErrorCardProps) {
   const [copied, setCopied] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<string | null>(null);
@@ -130,6 +132,19 @@ export default function ErrorCard({ issue }: ErrorCardProps) {
               path={issue.screenshot_path}
               alt={issue.description}
             />
+          )}
+          {visualDiff && (
+            <div className="error-card-visual-diff">
+              <VisualDiffViewer
+                baselineSrc={visualDiff.baselineScanId + '/' + issue.id + '.png'}
+                currentSrc={issue.screenshot_path || ''}
+                diffSrc={visualDiff.diffImagePath}
+                diffPercentage={visualDiff.diffPercentage}
+                threshold={visualDiff.thresholdUsed}
+                alt={issue.description}
+                compact
+              />
+            </div>
           )}
           <div className="metadata-actions">
             <button className="copy-details-btn" onClick={handleCopy}>

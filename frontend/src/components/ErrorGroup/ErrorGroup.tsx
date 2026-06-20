@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Issue, IssueType } from '../../types';
+import { Issue, IssueType, VisualDiff } from '../../types';
 import ErrorCard from '../ErrorCard/ErrorCard';
 import './ErrorGroup.css';
 
@@ -7,6 +7,7 @@ interface ErrorGroupProps {
   type: IssueType;
   issues: Issue[];
   defaultOpen?: boolean;
+  visualDiffsMap?: Record<string, VisualDiff>;
 }
 
 const typeConfig: Record<IssueType, { label: string; icon: string; color: string }> = {
@@ -21,7 +22,7 @@ const typeConfig: Record<IssueType, { label: string; icon: string; color: string
   [IssueType.ACCESSIBILITY]: { label: 'Accesibilidad', icon: '♿', color: '#7c3aed' },
 };
 
-export default function ErrorGroup({ type, issues, defaultOpen = false }: ErrorGroupProps) {
+export default function ErrorGroup({ type, issues, defaultOpen = false, visualDiffsMap }: ErrorGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const config = typeConfig[type] || { label: type, icon: '⚠️', color: '#94a3b8' };
 
@@ -52,7 +53,7 @@ export default function ErrorGroup({ type, issues, defaultOpen = false }: ErrorG
       {isOpen && (
         <div className="error-group-content">
           {issues.map((issue, index) => (
-            <ErrorCard key={`${issue.url}-${index}`} issue={issue} />
+            <ErrorCard key={`${issue.url}-${index}`} issue={issue} visualDiff={visualDiffsMap?.[issue.id || '']} />
           ))}
         </div>
       )}

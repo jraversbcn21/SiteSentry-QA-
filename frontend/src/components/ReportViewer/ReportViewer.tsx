@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { ReportResponse, Issue, IssueType, IssueSeverity, ScanStatus } from '../../types';
+import { useState, useMemo } from 'react';
+import { ReportResponse, Issue, IssueType, IssueSeverity, ScanStatus, VisualDiff } from '../../types';
 import ErrorGroup from '../ErrorGroup/ErrorGroup';
 import ScreenshotThumb from '@/components/ScreenshotThumb/ScreenshotThumb';
+import VisualDiffViewer from '@/components/VisualDiffViewer/VisualDiffViewer';
+import { scanApi } from '../../services/api';
 import './ReportViewer.css';
 
 function downloadFile(content: string, filename: string, mimeType: string) {
@@ -87,14 +89,43 @@ function exportCSV(report: ReportResponse) {
 
 interface ReportViewerProps {
   report: ReportResponse;
+  onBaselineChange?: () => void;
 }
 
 const ALL_TYPES = Object.values(IssueType);
 
-export default function ReportViewer({ report }: ReportViewerProps) {
+export default function ReportViewer({ report, onBaselineChange }: ReportViewerProps) {
   const [filterType, setFilterType] = useState<IssueType | 'ALL'>('ALL');
   const [filterSeverity, setFilterSeverity] = useState<IssueSeverity | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [baselineLoading, setBaselineLoading] = useState(false);
+
+  const { elementDiffsMap, fullPageDiff } = useMemo(() => {
+    const map: Record<string, VisualDiff> = {};
+    var fullPage: VisualDiff | undefined;
+    for (var i = 0; i < report.visualDiffs.length; i++) {
+      var diff = report.visualDiffs[i];
+      if (diff.diffType === 'full_page') {
+        fullPage = diff;
+      } else if (diff.diffType === 'element' && diff.issueId) {
+        map[diff.issueId] = diff;
+      }
+    }
+    return { elementDiffsMap: map, fullPageDiff: fullPage };
+  }, [report.visualDiffs]);
+
+  var isBaseline = report.baselineInfo?.isManual;
+
+  async function handleToggleBaseline() {
+    setBaselineLoading(true);
+    try {
+      await scanApi.setBaseline(report.id, !isBaseline);
+      if (onBaselineChange) onBaselineChange();
+      window.location.reload();
+    } catch {
+      setBaselineLoading(false);
+    }
+  }
 
   const filteredIssues = report.issues.filter((issue) => {
     if (filterType !== 'ALL' && issue.type !== filterType) return false;
@@ -198,6 +229,51 @@ export default function ReportViewer({ report }: ReportViewerProps) {
         </div>
       )}
 
+      {(fullPageDiff || report.baselineInfo) && (
+        <div className="report-section visual-regression-section">
+          <div className="section-header">
+            <h3>📸 Regresion Visual</h3>
+            {report.baselineInfo && (
+              <span className="baseline-meta">
+                Comparado contra scan del{' '}
+                {new Date(report.baselineInfo.createdAt).toLocaleDateString('es-ES')}
+                {report.baselineInfo.isManual && ' (manual)'}
+              </span>
+            )}
+          </div>
+          {fullPageDiff && report.fullPageScreenshot && (
+            <VisualDiffViewer
+              baselineSrc={fullPageDiff.baselineScanId + '/full.png'}
+              currentSrc={report.fullPageScreenshot}
+              diffSrc={fullPageDiff.diffImagePath}
+              diffPercentage={fullPageDiff.diffPercentage}
+              threshold={fullPageDiff.thresholdUsed}
+              alt={'Full-page: ' + report.url}
+            />
+          )}
+          <div className="baseline-actions">
+            <button
+              className={'baseline-btn' + (isBaseline ? ' is-baseline' : '')}
+              onClick={handleToggleBaseline}
+              disabled={baselineLoading}
+            >
+              {baselineLoading ? '⏳' : isBaseline ? '⭐ Quitar baseline' : '☆ Marcar como baseline'}
+            </button>
+          </div>
+        </div>
+      )}
+      {!fullPageDiff && !report.baselineInfo && report.status === ScanStatus.COMPLETED && (
+        <div className="report-section visual-regression-section">
+          <div className="section-header"><h3>📸 Regresion Visual</h3></div>
+          <p className="no-baseline-msg">Sin baseline para comparar. Realiza otro scan de esta URL para ver diferencias visuales.</p>
+          <div className="baseline-actions">
+            <button className="baseline-btn" onClick={handleToggleBaseline} disabled={baselineLoading}>
+              {baselineLoading ? '⏳' : '☆ Marcar como baseline'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="type-breakdown">
         {ALL_TYPES.map((type) => {
           const count = report.summary.byType[type] || 0;
@@ -280,6 +356,7 @@ export default function ReportViewer({ report }: ReportViewerProps) {
               type={type as IssueType}
               issues={issues}
               defaultOpen={false}
+              visualDiffsMap={elementDiffsMap}
             />
           ))}
         </div>
