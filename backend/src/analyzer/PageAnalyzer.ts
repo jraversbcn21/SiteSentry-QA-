@@ -151,7 +151,7 @@ export class PageAnalyzer {
     };
   }
 
-  private async fullScroll(page: Page): Promise<{ scrollHeight: number; viewportHeight: number }> {
+  async fullScroll(page: Page): Promise<{ scrollHeight: number; viewportHeight: number }> {
     return page.evaluate(`(async () => {
       const viewportHeight = window.innerHeight;
       let lastHeight = document.body.scrollHeight;

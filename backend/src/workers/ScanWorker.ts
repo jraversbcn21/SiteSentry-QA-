@@ -13,7 +13,7 @@ import sharp from 'sharp';
 interface JobData {
   scanId: string;
   url: string;
-  config: { timeout?: number };
+  config: { timeout?: number; flow?: import('../types').FlowInfo };
 }
 
 interface RunVisualRegressionParams {
@@ -234,62 +234,209 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
       `Consola: ${analysis.consoleErrors.length} errores.`
     );
 
-    if (job.updateProgress) {
-      try { job.updateProgress({ phase: 'running_checks' }); } catch {}
-    }
+    var flowConfig = config.flow;
+    var allIssues: import('../types').Issue[] = [];
+    var currentPage = analysis.page;
 
-    const allIssues: import('../types').Issue[] = [];
+    if (flowConfig && flowConfig.steps && flowConfig.steps.length > 0) {
+      console.log('[ScanWorker] Ejecutando flujo interactivo: ' + flowConfig.name + ' (' + flowConfig.steps.length + ' pasos)');
 
-    for (const checker of checkers) {
-      try {
-        const issues = await checker.check(url, analysis.page, analysis.networkEvents, analysis.consoleErrors);
-        allIssues.push(...issues);
-        console.log(`[ScanWorker] ${checker.name}: ${issues.length} issues`);
-      } catch (error) {
-        console.error(`[ScanWorker] ${checker.name} fallo:`, error);
-      }
-    }
+      var screenshotDir = path.join(process.cwd(), 'data', 'screenshots', scanId);
+      try { fs.mkdirSync(screenshotDir, { recursive: true }); } catch {}
 
-    // Asignar IDs a issues antes de screenshots (necesario para nombres de archivo)
-    for (const issue of allIssues) {
-      (issue as any).id = randomUUID();
-    }
+      var stepNetworkEvents = analysis.networkEvents;
+      var stepConsoleErrors = analysis.consoleErrors;
 
-    // --- Captura de screenshots ---
-    try {
-      const screenshotDir = path.join(process.cwd(), 'data', 'screenshots', scanId);
-      fs.mkdirSync(screenshotDir, { recursive: true });
-
-      // Full-page screenshot
-      try {
-        const fullPath = path.join(screenshotDir, 'full.png');
-        await analysis.page.screenshot({ path: fullPath, fullPage: true, type: 'png' });
-        console.log('[ScanWorker] Full-page screenshot capturado');
-      } catch (err) {
-        console.warn('[ScanWorker] No se pudo capturar full-page screenshot:', err);
-      }
-
-      // Element screenshots for HIGH severity issues with selectors
-      for (const issue of allIssues) {
-        if (issue.severity !== 'HIGH') continue;
-        const selector = issue.metadata?.selector as string | undefined;
-        if (!selector) continue;
+      for (var stepIdx = 0; stepIdx < flowConfig.steps.length; stepIdx++) {
+        var step = flowConfig.steps[stepIdx];
+        if (job.updateProgress) {
+          try { job.updateProgress({ phase: 'running_flow_step', step: { index: stepIdx, total: flowConfig.steps.length, action: step.action } }); } catch {}
+        }
 
         try {
-          const el = analysis.page.locator(selector).first();
-          const fileName = `${(issue as any).id}.png`;
-          const filePath = path.join(screenshotDir, fileName);
-          await el.screenshot({ path: filePath, type: 'png' });
-          issue.screenshot_path = `${scanId}/${fileName}`;
-        } catch {
-          console.debug(`[ScanWorker] Elemento no encontrado para screenshot: ${selector}`);
+          if (step.action === 'navigate') {
+            stepNetworkEvents = [];
+            stepConsoleErrors = [];
+            currentPage.on('response', function(response: any) {
+              stepNetworkEvents.push({
+                url: response.url(),
+                method: response.request().method(),
+                resourceType: response.request().resourceType(),
+                status: response.status(),
+                statusText: response.statusText(),
+                failed: false,
+                failureText: null,
+                timing: 0,
+                size: 0,
+                mimeType: response.headers()['content-type'] || '',
+              });
+            });
+            currentPage.on('requestfailed', function(request: any) {
+              stepNetworkEvents.push({
+                url: request.url(),
+                method: request.method(),
+                resourceType: request.resourceType(),
+                status: null,
+                statusText: '',
+                failed: true,
+                failureText: request.failure()?.errorText || 'Unknown error',
+                timing: 0,
+                size: 0,
+                mimeType: '',
+              });
+            });
+            currentPage.on('console', function(msg: any) {
+              if (msg.type() === 'error') {
+                stepConsoleErrors.push({ text: msg.text(), type: msg.type(), location: msg.location()?.url || '' });
+              }
+            });
+            await currentPage.goto(step.url || '', { waitUntil: 'domcontentloaded', timeout: config.timeout || 30000 });
+            await currentPage.waitForLoadState('networkidle').catch(function() {});
+          } else if (step.action === 'click' && step.selector) {
+            await currentPage.locator(step.selector).first().click({ timeout: 10000 });
+            await currentPage.waitForTimeout(1000);
+          } else if (step.action === 'type' && step.selector && step.value !== undefined) {
+            await currentPage.locator(step.selector).first().fill(step.value, { timeout: 10000 });
+          } else if (step.action === 'wait' && step.ms) {
+            await currentPage.waitForTimeout(step.ms);
+          } else if (step.action === 'select' && step.selector && step.value !== undefined) {
+            await currentPage.locator(step.selector).first().selectOption(step.value, { timeout: 10000 });
+          } else if (step.action === 'hover' && step.selector) {
+            await currentPage.locator(step.selector).first().hover({ timeout: 10000 });
+          } else if (step.action === 'press' && step.key) {
+            if (step.selector) {
+              await currentPage.locator(step.selector).first().press(step.key, { timeout: 10000 });
+            } else {
+              await currentPage.keyboard.press(step.key);
+            }
+          }
+        } catch (stepErr) {
+          var errorMsg = stepErr instanceof Error ? stepErr.message : String(stepErr);
+          console.warn('[ScanWorker] Error en paso ' + stepIdx + ' (' + step.action + '):', errorMsg);
+          allIssues.push({
+            type: 'FLOW_ERROR' as any,
+            severity: 'HIGH' as any,
+            url: url,
+            description: 'Error en paso ' + stepIdx + ' (' + step.action + '): ' + errorMsg,
+            metadata: { stepIndex: stepIdx, action: step.action, error: errorMsg.substring(0, 300) },
+            screenshot_path: undefined,
+          } as any);
+          (allIssues[allIssues.length - 1] as any).stepIndex = stepIdx;
+
+          if (step.action === 'navigate') {
+            console.warn('[ScanWorker] Navegacion fallida, abortando flujo');
+            break;
+          }
+          continue;
+        }
+
+        var isCheckpoint = step.action === 'checkpoint' || step.action === 'navigate' || stepIdx === flowConfig.steps.length - 1;
+
+        if (isCheckpoint) {
+          try {
+            await analyzer.fullScroll(currentPage);
+          } catch {}
+
+          for (var ci = 0; ci < checkers.length; ci++) {
+            var checker = checkers[ci];
+            try {
+              var issues = await checker.check(url, currentPage, stepNetworkEvents, stepConsoleErrors);
+              for (var ii = 0; ii < issues.length; ii++) {
+                (issues[ii] as any).stepIndex = stepIdx;
+              }
+              allIssues.push(...issues);
+              console.log('[ScanWorker] ' + checker.name + ' (paso ' + stepIdx + '): ' + issues.length + ' issues');
+            } catch (checkerErr) {
+              console.error('[ScanWorker] ' + checker.name + ' fallo en paso ' + stepIdx + ':', checkerErr);
+            }
+          }
+
+          try {
+            var stepFullPath = path.join(screenshotDir, 'step-' + stepIdx + '-full.png');
+            await currentPage.screenshot({ path: stepFullPath, fullPage: true, type: 'png' });
+
+            var stepIssues = allIssues.filter(function(iss: any) { return (iss as any).stepIndex === stepIdx; });
+            for (var si = 0; si < stepIssues.length; si++) {
+              var sIssue = stepIssues[si];
+              if (sIssue.severity !== 'HIGH') continue;
+              var selector = sIssue.metadata?.selector as string | undefined;
+              if (!selector) continue;
+              try {
+                var el = currentPage.locator(selector).first();
+                var issueId = (sIssue as any).id;
+                if (!issueId) {
+                  issueId = randomUUID();
+                  (sIssue as any).id = issueId;
+                }
+                var elFileName = 'step-' + stepIdx + '-' + issueId + '.png';
+                var elFilePath = path.join(screenshotDir, elFileName);
+                await el.screenshot({ path: elFilePath, type: 'png' });
+                sIssue.screenshot_path = scanId + '/' + elFileName;
+              } catch {}
+            }
+          } catch (screenshotErr) {
+            console.warn('[ScanWorker] Screenshots fallaron en paso ' + stepIdx + ':', screenshotErr);
+          }
         }
       }
-    } catch (err) {
-      console.warn('[ScanWorker] No se pudo crear directorio de screenshots, omitiendo capturas:', err);
-    }
 
-    await analyzer.close(analysis.page);
+      await analyzer.close(currentPage);
+    } else {
+      if (job.updateProgress) {
+        try { job.updateProgress({ phase: 'running_checks' }); } catch {}
+      }
+
+      for (const checker of checkers) {
+        try {
+          const issues = await checker.check(url, analysis.page, analysis.networkEvents, analysis.consoleErrors);
+          allIssues.push(...issues);
+          console.log(`[ScanWorker] ${checker.name}: ${issues.length} issues`);
+        } catch (error) {
+          console.error(`[ScanWorker] ${checker.name} fallo:`, error);
+        }
+      }
+
+      // Asignar IDs a issues antes de screenshots (necesario para nombres de archivo)
+      for (const issue of allIssues) {
+        (issue as any).id = randomUUID();
+      }
+
+      // --- Captura de screenshots ---
+      try {
+        const screenshotDir = path.join(process.cwd(), 'data', 'screenshots', scanId);
+        fs.mkdirSync(screenshotDir, { recursive: true });
+
+        // Full-page screenshot
+        try {
+          const fullPath = path.join(screenshotDir, 'full.png');
+          await analysis.page.screenshot({ path: fullPath, fullPage: true, type: 'png' });
+          console.log('[ScanWorker] Full-page screenshot capturado');
+        } catch (err) {
+          console.warn('[ScanWorker] No se pudo capturar full-page screenshot:', err);
+        }
+
+        // Element screenshots for HIGH severity issues with selectors
+        for (const issue of allIssues) {
+          if (issue.severity !== 'HIGH') continue;
+          const selector = issue.metadata?.selector as string | undefined;
+          if (!selector) continue;
+
+          try {
+            const el = analysis.page.locator(selector).first();
+            const fileName = `${(issue as any).id}.png`;
+            const filePath = path.join(screenshotDir, fileName);
+            await el.screenshot({ path: filePath, type: 'png' });
+            issue.screenshot_path = `${scanId}/${fileName}`;
+          } catch {
+            console.debug(`[ScanWorker] Elemento no encontrado para screenshot: ${selector}`);
+          }
+        }
+      } catch (err) {
+        console.warn('[ScanWorker] No se pudo crear directorio de screenshots, omitiendo capturas:', err);
+      }
+
+      await analyzer.close(analysis.page);
+    }
 
     if (job.updateProgress) {
       try { job.updateProgress({ phase: 'saving_results' }); } catch {}
@@ -297,8 +444,8 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
 
     if (allIssues.length > 0) {
       const insertIssue = db.prepare(`
-        INSERT OR IGNORE INTO issues (id, scan_id, type, severity, url, source_url, description, metadata, screenshot_path, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO issues (id, scan_id, type, severity, url, source_url, description, metadata, screenshot_path, step_index, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const insertMany = db.transaction((issues: import('../types').Issue[]) => {
@@ -313,12 +460,23 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
             issue.description,
             issue.metadata ? JSON.stringify(issue.metadata) : null,
             issue.screenshot_path || null,
+            (issue as any).stepIndex ?? null,
             new Date().toISOString()
           );
         }
       });
 
       insertMany(allIssues);
+    }
+
+    // Copiar ultimo step full-page como full.png para regresion visual
+    if (flowConfig && flowConfig.steps && flowConfig.steps.length > 0) {
+      var lastIdx = flowConfig.steps.length - 1;
+      var lastFullPath = path.join(process.cwd(), 'data', 'screenshots', scanId, 'step-' + lastIdx + '-full.png');
+      var fullPath = path.join(process.cwd(), 'data', 'screenshots', scanId, 'full.png');
+      if (fs.existsSync(lastFullPath)) {
+        try { fs.copyFileSync(lastFullPath, fullPath); } catch {}
+      }
     }
 
     // --- Visual Regression ---
