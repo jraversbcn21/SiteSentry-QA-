@@ -94,6 +94,53 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
     const fullPagePath = path.join(process.cwd(), 'data', 'screenshots', scan.id, 'full.png');
     const fullPageScreenshot = fs.existsSync(fullPagePath) ? `${scan.id}/full.png` : null;
 
+    // Visual diffs
+    const visualDiffs = db.prepare(
+      'SELECT * FROM visual_diffs WHERE scan_id = ? ORDER BY diff_type, created_at'
+    ).all(id) as Array<{
+      id: string;
+      scan_id: string;
+      baseline_scan_id: string;
+      diff_type: string;
+      issue_id: string | null;
+      element_identifier: string | null;
+      diff_percentage: number;
+      diff_image_path: string | null;
+      threshold_used: number;
+      created_at: string;
+    }>;
+
+    const parsedVisualDiffs = visualDiffs.map((d) => ({
+      id: d.id,
+      diffType: d.diff_type,
+      baselineScanId: d.baseline_scan_id,
+      diffPercentage: d.diff_percentage,
+      diffImagePath: d.diff_image_path || '',
+      thresholdUsed: d.threshold_used,
+      elementIdentifier: d.element_identifier || undefined,
+      issueId: d.issue_id || undefined,
+    }));
+
+    // Baseline info
+    let baselineInfo: { scanId: string; isManual: boolean; createdAt: string } | null = null;
+    if (visualDiffs.length > 0) {
+      const baselineScan = db.prepare(
+        'SELECT id, is_baseline, created_at FROM scans WHERE id = ?'
+      ).get(visualDiffs[0].baseline_scan_id) as {
+        id: string;
+        is_baseline: number;
+        created_at: string;
+      } | undefined;
+
+      if (baselineScan) {
+        baselineInfo = {
+          scanId: baselineScan.id,
+          isManual: baselineScan.is_baseline === 1,
+          createdAt: baselineScan.created_at,
+        };
+      }
+    }
+
     return res.json({
       id: scan.id,
       url: scan.url,
@@ -102,6 +149,8 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       completedAt: scan.completed_at,
       issues: parsedIssues,
       fullPageScreenshot,
+      visualDiffs: parsedVisualDiffs,
+      baselineInfo,
       summary: {
         total: parsedIssues.length,
         byType,
