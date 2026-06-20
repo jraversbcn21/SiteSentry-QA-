@@ -8,6 +8,7 @@ export const scanRoutes = Router();
 
 const ScanRequestSchema = z.object({
   url: z.string().url('URL invalida - debe incluir http:// o https://'),
+  visualDiffThreshold: z.number().min(0).max(1).optional(),
   config: z
     .object({
       timeout: z.number().int().min(5000).max(120000).optional(),
@@ -26,21 +27,28 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const { url, config } = validation.data;
+    const { url, config, visualDiffThreshold } = validation.data;
     const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+
+    const jobConfig = {
+      ...(config || {}),
+      ...(visualDiffThreshold !== undefined
+        ? { visualDiffThreshold }
+        : {}),
+    };
 
     const scan = await prisma.scan.create({
       data: {
         url: normalizedUrl,
         status: ScanStatus.PENDING,
-        config: (config as object) || {},
+        config: jobConfig as object,
       },
     });
 
     await scanQueue.add('process-scan', {
       scanId: scan.id,
       url: normalizedUrl,
-      config: config || {},
+      config: jobConfig,
     });
 
     return res.status(201).json({
