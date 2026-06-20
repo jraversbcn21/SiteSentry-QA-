@@ -6,6 +6,8 @@ const GROQ_MODELS = [
   { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (rapido)' },
   { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (potente)' },
   { value: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 70B (razonamiento)' },
+  { value: 'gpt-oss-120b', label: 'GPT OSS 120B' },
+  { value: 'qwen-2.5-32b', label: 'Qwen 2.5 32B' },
 ];
 
 export default function Settings() {
