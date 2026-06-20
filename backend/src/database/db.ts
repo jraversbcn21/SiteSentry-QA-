@@ -101,5 +101,31 @@ export function getDb(): Database.Database {
     }
   }
 
+  // Migracion: crear tabla flows (Fase 3 - Interactive Flows)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS flows (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        steps TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+  } catch (e: any) {
+    if (!e.message.includes('already exists')) {
+      console.warn('Migration warning (flows):', e.message);
+    }
+  }
+
+  // Migracion: agregar step_index a issues (Fase 3 - Interactive Flows)
+  try {
+    db.exec('ALTER TABLE issues ADD COLUMN step_index INTEGER');
+  } catch (e: any) {
+    if (!e.message.includes('duplicate column name')) {
+      console.warn('Migration warning (step_index):', e.message);
+    }
+  }
+
   return db;
 }
