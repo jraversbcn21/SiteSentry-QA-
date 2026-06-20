@@ -20,6 +20,7 @@ const typeConfig: Record<IssueType, { label: string; icon: string; color: string
   [IssueType.CONSOLE_ERROR]: { label: 'Errores de Consola', icon: '🐛', color: '#dc2626' },
   [IssueType.PERFORMANCE]: { label: 'Rendimiento', icon: '⚡', color: '#d97706' },
   [IssueType.ACCESSIBILITY]: { label: 'Accesibilidad', icon: '♿', color: '#7c3aed' },
+  [IssueType.FLOW_ERROR]: { label: 'Error de Flujo', icon: '🔀', color: '#dc2626' },
 };
 
 export default function ErrorGroup({ type, issues, defaultOpen = false, visualDiffsMap }: ErrorGroupProps) {

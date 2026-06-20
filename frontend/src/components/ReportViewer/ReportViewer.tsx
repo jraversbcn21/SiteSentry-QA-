@@ -376,6 +376,7 @@ function getTypeIcon(type: IssueType): string {
     [IssueType.CONSOLE_ERROR]: '🐛',
     [IssueType.PERFORMANCE]: '⚡',
     [IssueType.ACCESSIBILITY]: '♿',
+    [IssueType.FLOW_ERROR]: '🔀',
   };
   return icons[type] || '⚠️';
 }
@@ -391,6 +392,7 @@ function getTypeLabel(type: IssueType): string {
     [IssueType.CONSOLE_ERROR]: 'Errores de Consola',
     [IssueType.PERFORMANCE]: 'Rendimiento',
     [IssueType.ACCESSIBILITY]: 'Accesibilidad',
+    [IssueType.FLOW_ERROR]: 'Error de Flujo',
   };
   return labels[type] || type;
 }

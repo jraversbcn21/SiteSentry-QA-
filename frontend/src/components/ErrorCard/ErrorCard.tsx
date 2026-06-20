@@ -33,7 +33,8 @@ export default function ErrorCard({ issue, visualDiff }: ErrorCardProps) {
     [IssueType.CONSOLE_ERROR]: { label: 'Error de Consola', icon: '🐛' },
     [IssueType.PERFORMANCE]: { label: 'Rendimiento', icon: '⚡' },
     [IssueType.ACCESSIBILITY]: { label: 'Accesibilidad', icon: '♿' },
-  };
+    [IssueType.FLOW_ERROR]: { label: 'Error de Flujo', icon: '🔀' },
+};
 
   const sev = severityConfig[issue.severity] || severityConfig[IssueSeverity.LOW];
   const type = typeConfig[issue.type] || { label: issue.type, icon: '⚠️' };
