@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { prisma } from '../../database/client';
+import { randomUUID } from 'crypto';
 import { getDb } from '../../database/db';
 import { getScanQueue } from '../../queue/queue';
 import { ScanStatus, FlowInfo } from '../../types';
@@ -34,7 +34,7 @@ const ScanRequestSchema = z.object({
 // POST /api/scan - Iniciar analisis de una pagina
 scanRoutes.post('/', async (req: Request, res: Response) => {
   try {
-    const validation = ScanRequestSchema.safeParse(req.body);
+    var validation = ScanRequestSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({
         error: 'Datos de entrada invalidos',
@@ -42,8 +42,8 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const { url, config, visualDiffThreshold } = validation.data;
-    const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+    var { url, config, visualDiffThreshold } = validation.data;
+    var normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
 
     var resolvedFlow: FlowInfo | undefined;
 
@@ -58,7 +58,7 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
       resolvedFlow = { name: savedFlow.name, steps: JSON.parse(savedFlow.steps) };
     }
 
-    const jobConfig = {
+    var jobConfig = {
       ...(config || {}),
       ...(visualDiffThreshold !== undefined
         ? { visualDiffThreshold }
@@ -66,30 +66,29 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
       ...(resolvedFlow ? { flow: resolvedFlow } : {}),
     };
 
-    const scan = await prisma.scan.create({
-      data: {
-        url: normalizedUrl,
-        status: ScanStatus.PENDING,
-        config: jobConfig as object,
-      },
-    });
+    var db2 = getDb();
+    var scanId = randomUUID();
+    var now = new Date().toISOString();
+
+    db2.prepare('INSERT INTO scans (id, url, status, config, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(scanId, normalizedUrl, ScanStatus.PENDING, JSON.stringify(jobConfig), now);
 
     var queue = getScanQueue();
     if (!queue) {
-      return res.status(503).json({ error: 'Servicio de cola no disponible (Redis no esta corriendo). El scan no pudo ser encolado.' });
+      return res.status(503).json({ error: 'Servicio de cola no disponible. El scan no pudo ser encolado.' });
     }
 
     await queue.add('process-scan', {
-      scanId: scan.id,
+      scanId: scanId,
       url: normalizedUrl,
       config: jobConfig,
     });
 
     return res.status(201).json({
-      id: scan.id,
-      status: scan.status,
-      url: scan.url,
-      createdAt: scan.createdAt,
+      id: scanId,
+      status: ScanStatus.PENDING,
+      url: normalizedUrl,
+      createdAt: now,
     });
   } catch (error) {
     console.error('Error iniciando scan:', error);
@@ -100,22 +99,27 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
 // GET /api/scan/:id/status - Obtener estado del scan
 scanRoutes.get('/:id/status', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    var { id } = req.params;
 
-    const scan = await prisma.scan.findUnique({
-      where: { id },
-    });
+    var db = getDb();
+    var scan = db.prepare('SELECT id, url, status, created_at, completed_at FROM scans WHERE id = ?').get(id) as {
+      id: string;
+      url: string;
+      status: string;
+      created_at: string;
+      completed_at: string | null;
+    } | undefined;
 
     if (!scan) {
       return res.status(404).json({ error: 'Scan no encontrado' });
     }
 
-    let jobProgress = null;
+    var jobProgress = null;
     try {
       var statusQueue = getScanQueue();
       if (statusQueue) {
         var jobs = await statusQueue.getJobs(['active', 'waiting']);
-        var job = jobs.find((j) => j.data?.scanId === id);
+        var job = jobs.find(function(j: any) { return j.data?.scanId === id; });
         if (job) {
           jobProgress = job.progress;
         }
@@ -129,8 +133,8 @@ scanRoutes.get('/:id/status', async (req: Request, res: Response) => {
       status: scan.status,
       url: scan.url,
       progress: jobProgress,
-      createdAt: scan.createdAt,
-      completedAt: scan.completedAt,
+      createdAt: scan.created_at,
+      completedAt: scan.completed_at,
     });
   } catch (error) {
     console.error('Error obteniendo estado del scan:', error);

@@ -1,34 +1,70 @@
-import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
+import { EventEmitter } from 'events';
 
-let connection: IORedis | null = null;
-let scanQueue: Queue | null = null;
-
-function getConnection(): IORedis {
-  if (!connection) {
-    connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-      maxRetriesPerRequest: null,
-      lazyConnect: true,
-    });
-  }
-  return connection;
+interface Job {
+  id: string;
+  name: string;
+  data: any;
+  progress: any;
+  timestamp: number;
 }
 
-export function getScanQueue(): Queue | null {
-  if (scanQueue) return scanQueue;
-  try {
-    scanQueue = new Queue('scan-queue', {
-      connection: getConnection(),
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: { age: 3600, count: 100 },
-        removeOnFail: { age: 86400 },
-      },
+class SimpleQueue extends EventEmitter {
+  private jobs: Job[] = [];
+  private processing = false;
+  private nextId = 1;
+
+  async add(name: string, data: any, _opts?: any): Promise<Job> {
+    var id = String(this.nextId++);
+    var job: Job = { id, name, data, progress: null, timestamp: Date.now() };
+    this.jobs.push(job);
+    this.processNext();
+    return job;
+  }
+
+  async getJobs(_types: string[]): Promise<Job[]> {
+    return this.jobs;
+  }
+
+  private async processNext() {
+    if (this.processing) return;
+    this.processing = true;
+    while (this.jobs.length > 0) {
+      var job = this.jobs.shift()!;
+      try {
+        await this.emitAsync('process', job);
+      } catch (err) {
+        this.emit('failed', job, err);
+      }
+    }
+    this.processing = false;
+  }
+
+  private emitAsync(event: string, ...args: any[]): Promise<void> {
+    return new Promise((resolve, reject) => {
+      var listeners = this.listeners(event);
+      if (listeners.length === 0) {
+        resolve();
+        return;
+      }
+      var handler = listeners[0] as Function;
+      try {
+        var result = handler(...args);
+        if (result && typeof result.then === 'function') {
+          result.then(resolve, reject);
+        } else {
+          resolve();
+        }
+      } catch (err) {
+        reject(err);
+      }
     });
-    return scanQueue;
-  } catch {
-    console.warn('⚠ Redis no disponible. Los scans no se procesaran hasta que Redis este corriendo y se reinicie el servidor.');
-    return null;
   }
 }
+
+var scanQueue = new SimpleQueue();
+
+export function getScanQueue(): SimpleQueue | null {
+  return scanQueue;
+}
+
+export { scanQueue };
