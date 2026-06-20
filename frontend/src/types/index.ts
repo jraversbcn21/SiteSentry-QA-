@@ -24,6 +24,7 @@ export enum ScanStatus {
 }
 
 export interface Issue {
+  id?: string;
   type: IssueType;
   severity: IssueSeverity;
   url: string;
@@ -35,6 +36,7 @@ export interface Issue {
 
 export interface ScanRequest {
   url: string;
+  visualDiffThreshold?: number;
   config?: {
     timeout?: number;
   };
@@ -66,9 +68,28 @@ export interface ReportResponse {
   completedAt?: string;
   issues: Issue[];
   fullPageScreenshot?: string | null;
+  visualDiffs: VisualDiff[];
+  baselineInfo: BaselineInfo | null;
   summary: {
     total: number;
     byType: Record<IssueType, number>;
     bySeverity: Record<IssueSeverity, number>;
   };
+}
+
+export interface VisualDiff {
+  id: string;
+  diffType: 'full_page' | 'element';
+  baselineScanId: string;
+  diffPercentage: number;
+  diffImagePath: string;
+  thresholdUsed: number;
+  elementIdentifier?: string;
+  issueId?: string;
+}
+
+export interface BaselineInfo {
+  scanId: string;
+  isManual: boolean;
+  createdAt: string;
 }
