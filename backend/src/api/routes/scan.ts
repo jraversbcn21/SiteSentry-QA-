@@ -1,14 +1,29 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../database/client';
+import { getDb } from '../../database/db';
 import { scanQueue } from '../../queue/queue';
-import { ScanStatus } from '../../types';
+import { ScanStatus, FlowInfo } from '../../types';
 
 export const scanRoutes = Router();
+
+const FlowStepSchema = z.object({
+  action: z.enum(['navigate', 'click', 'type', 'wait', 'select', 'hover', 'press', 'checkpoint']),
+  url: z.string().optional(),
+  selector: z.string().optional(),
+  value: z.string().optional(),
+  ms: z.number().int().min(0).optional(),
+  key: z.string().optional(),
+});
 
 const ScanRequestSchema = z.object({
   url: z.string().url('URL invalida - debe incluir http:// o https://'),
   visualDiffThreshold: z.number().min(0).max(1).optional(),
+  flow: z.object({
+    name: z.string().min(1).max(200),
+    steps: z.array(FlowStepSchema).min(1),
+  }).optional(),
+  flowId: z.string().optional(),
   config: z
     .object({
       timeout: z.number().int().min(5000).max(120000).optional(),
@@ -30,11 +45,25 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
     const { url, config, visualDiffThreshold } = validation.data;
     const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
 
+    var resolvedFlow: FlowInfo | undefined;
+
+    if (validation.data.flow) {
+      resolvedFlow = validation.data.flow as FlowInfo;
+    } else if (validation.data.flowId) {
+      var db = getDb();
+      var savedFlow = db.prepare('SELECT name, steps FROM flows WHERE id = ?').get(validation.data.flowId) as { name: string; steps: string } | undefined;
+      if (!savedFlow) {
+        return res.status(404).json({ error: 'Flujo no encontrado' });
+      }
+      resolvedFlow = { name: savedFlow.name, steps: JSON.parse(savedFlow.steps) };
+    }
+
     const jobConfig = {
       ...(config || {}),
       ...(visualDiffThreshold !== undefined
         ? { visualDiffThreshold }
         : {}),
+      ...(resolvedFlow ? { flow: resolvedFlow } : {}),
     };
 
     const scan = await prisma.scan.create({
