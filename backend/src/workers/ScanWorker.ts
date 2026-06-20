@@ -247,6 +247,41 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
       var stepNetworkEvents = analysis.networkEvents;
       var stepConsoleErrors = analysis.consoleErrors;
 
+      var onResponse = function(response: any) {
+        stepNetworkEvents.push({
+          url: response.url(),
+          method: response.request().method(),
+          resourceType: response.request().resourceType(),
+          status: response.status(),
+          statusText: response.statusText(),
+          failed: false,
+          failureText: null,
+          timing: 0,
+          size: 0,
+          mimeType: response.headers()['content-type'] || '',
+        });
+      };
+      var onRequestFailed = function(request: any) {
+        stepNetworkEvents.push({
+          url: request.url(),
+          method: request.method(),
+          resourceType: request.resourceType(),
+          status: null,
+          statusText: '',
+          failed: true,
+          failureText: request.failure()?.errorText || 'Unknown error',
+          timing: 0,
+          size: 0,
+          mimeType: '',
+        });
+      };
+      var onConsole = function(msg: any) {
+        if (msg.type() === 'error') {
+          stepConsoleErrors.push({ text: msg.text(), type: msg.type(), location: msg.location()?.url || '' });
+        }
+      };
+      var listenersAttached = false;
+
       for (var stepIdx = 0; stepIdx < flowConfig.steps.length; stepIdx++) {
         var step = flowConfig.steps[stepIdx];
         if (job.updateProgress) {
@@ -257,39 +292,12 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
           if (step.action === 'navigate') {
             stepNetworkEvents = [];
             stepConsoleErrors = [];
-            currentPage.on('response', function(response: any) {
-              stepNetworkEvents.push({
-                url: response.url(),
-                method: response.request().method(),
-                resourceType: response.request().resourceType(),
-                status: response.status(),
-                statusText: response.statusText(),
-                failed: false,
-                failureText: null,
-                timing: 0,
-                size: 0,
-                mimeType: response.headers()['content-type'] || '',
-              });
-            });
-            currentPage.on('requestfailed', function(request: any) {
-              stepNetworkEvents.push({
-                url: request.url(),
-                method: request.method(),
-                resourceType: request.resourceType(),
-                status: null,
-                statusText: '',
-                failed: true,
-                failureText: request.failure()?.errorText || 'Unknown error',
-                timing: 0,
-                size: 0,
-                mimeType: '',
-              });
-            });
-            currentPage.on('console', function(msg: any) {
-              if (msg.type() === 'error') {
-                stepConsoleErrors.push({ text: msg.text(), type: msg.type(), location: msg.location()?.url || '' });
-              }
-            });
+            if (!listenersAttached) {
+              currentPage.on('response', onResponse);
+              currentPage.on('requestfailed', onRequestFailed);
+              currentPage.on('console', onConsole);
+              listenersAttached = true;
+            }
             await currentPage.goto(step.url || '', { waitUntil: 'domcontentloaded', timeout: config.timeout || 30000 });
             await currentPage.waitForLoadState('networkidle').catch(function() {});
           } else if (step.action === 'click' && step.selector) {
@@ -377,6 +385,14 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
           } catch (screenshotErr) {
             console.warn('[ScanWorker] Screenshots fallaron en paso ' + stepIdx + ':', screenshotErr);
           }
+        }
+      }
+
+      // Asignar IDs a issues del flujo antes de persistir
+      for (var fi = 0; fi < allIssues.length; fi++) {
+        var flowIssue = allIssues[fi];
+        if (!(flowIssue as any).id) {
+          (flowIssue as any).id = randomUUID();
         }
       }
 
