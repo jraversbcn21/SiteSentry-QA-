@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { scanRoutes } from './routes/scan';
 import { reportsRoutes } from './routes/reports';
+import { flowsRoutes } from './routes/flows';
 import { getDb } from '../database/db';
 import '../workers/index';
 
@@ -43,6 +44,7 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api/scan', scanRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/flows', flowsRoutes);
 
 // Set/unset manual baseline
 app.post('/api/scans/:id/set-baseline', (req, res) => {
