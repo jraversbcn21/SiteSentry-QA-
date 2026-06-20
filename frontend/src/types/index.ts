@@ -14,6 +14,7 @@ export enum IssueType {
   CONSOLE_ERROR = 'CONSOLE_ERROR',
   PERFORMANCE = 'PERFORMANCE',
   ACCESSIBILITY = 'ACCESSIBILITY',
+  FLOW_ERROR = 'FLOW_ERROR',
 }
 
 export enum ScanStatus {
@@ -32,11 +33,14 @@ export interface Issue {
   description: string;
   metadata?: Record<string, unknown>;
   screenshot_path?: string | null;
+  stepIndex?: number | null;
 }
 
 export interface ScanRequest {
   url: string;
   visualDiffThreshold?: number;
+  flow?: { name: string; steps: FlowStep[] };
+  flowId?: string;
   config?: {
     timeout?: number;
   };
@@ -70,6 +74,8 @@ export interface ReportResponse {
   fullPageScreenshot?: string | null;
   visualDiffs: VisualDiff[];
   baselineInfo: BaselineInfo | null;
+  flow?: FlowInfo;
+  steps?: StepResult[];
   summary: {
     total: number;
     byType: Record<IssueType, number>;
@@ -102,4 +108,30 @@ export interface FlowStep {
   value?: string;
   ms?: number;
   key?: string;
+}
+
+export interface FlowInfo {
+  name: string;
+  steps: FlowStep[];
+}
+
+export interface FlowDefinition {
+  id: string;
+  name: string;
+  steps: FlowStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StepResult {
+  index: number;
+  action: string;
+  label: string;
+  issues: Issue[];
+  fullPageScreenshot: string | null;
+  summary: {
+    total: number;
+    byType: Record<string, number>;
+    bySeverity: Record<string, number>;
+  };
 }

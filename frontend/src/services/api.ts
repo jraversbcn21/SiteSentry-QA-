@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ScanRequest, ScanResponse, ScanStatusResponse, ReportResponse } from '../types';
+import { ScanRequest, ScanResponse, ScanStatusResponse, ReportResponse, FlowDefinition, FlowStep } from '../types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -33,6 +33,29 @@ export const scanApi = {
 
   setBaseline: async (scanId: string, isBaseline: boolean): Promise<void> => {
     await api.post(`/scans/${scanId}/set-baseline`, { isBaseline });
+  },
+
+  getFlows: async (): Promise<FlowDefinition[]> => {
+    var response = await api.get<FlowDefinition[]>('/flows');
+    return response.data;
+  },
+
+  getFlow: async (id: string): Promise<FlowDefinition> => {
+    var response = await api.get<FlowDefinition>('/flows/' + id);
+    return response.data;
+  },
+
+  createFlow: async (name: string, steps: FlowStep[]): Promise<FlowDefinition> => {
+    var response = await api.post<FlowDefinition>('/flows', { name, steps });
+    return response.data;
+  },
+
+  updateFlow: async (id: string, name: string, steps: FlowStep[]): Promise<void> => {
+    await api.put('/flows/' + id, { name, steps });
+  },
+
+  deleteFlow: async (id: string): Promise<void> => {
+    await api.delete('/flows/' + id);
   },
 };
 
