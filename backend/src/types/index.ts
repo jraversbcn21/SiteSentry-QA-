@@ -18,6 +18,7 @@ export enum IssueType {
   CONSOLE_ERROR = 'CONSOLE_ERROR',
   PERFORMANCE = 'PERFORMANCE',
   ACCESSIBILITY = 'ACCESSIBILITY',
+  FLOW_ERROR = 'FLOW_ERROR',
 }
 
 export enum IssueSeverity {
@@ -39,11 +40,39 @@ export interface Issue {
 export interface ScanConfig {
   timeout: number;
   visualDiffThreshold?: number;
+  flow?: FlowInfo;
 }
 
 export interface IChecker {
   name: string;
   check(url: string, page: Page, networkEvents: NetworkEvent[], consoleErrors?: ConsoleEvent[]): Promise<Issue[]>;
+}
+
+export interface FlowStep {
+  action: string;
+  url?: string;
+  selector?: string;
+  value?: string;
+  ms?: number;
+  key?: string;
+}
+
+export interface FlowInfo {
+  name: string;
+  steps: FlowStep[];
+}
+
+export interface StepResult {
+  index: number;
+  action: string;
+  label: string;
+  issues: Issue[];
+  fullPageScreenshot: string | null;
+  summary: {
+    total: number;
+    byType: Record<string, number>;
+    bySeverity: Record<string, number>;
+  };
 }
 
 export interface VisualDiff {
