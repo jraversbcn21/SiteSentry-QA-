@@ -94,3 +94,12 @@ export interface BaselineInfo {
   isManual: boolean;
   createdAt: string;
 }
+
+export interface FlowStep {
+  action: string;
+  url?: string;
+  selector?: string;
+  value?: string;
+  ms?: number;
+  key?: string;
+}
