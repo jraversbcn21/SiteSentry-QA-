@@ -38,6 +38,7 @@ export interface Issue {
 
 export interface ScanConfig {
   timeout: number;
+  visualDiffThreshold?: number;
 }
 
 export interface IChecker {

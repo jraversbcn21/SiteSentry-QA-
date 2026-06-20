@@ -30,6 +30,9 @@ export default function ErrorCard({ issue, visualDiff }: ErrorCardProps) {
     [IssueType.EMPTY_CONTENT]: { label: 'Contenido Vacio', icon: '📭' },
     [IssueType.LAZY_LOAD]: { label: 'Carga Diferida', icon: '⏳' },
     [IssueType.FORM_MODAL]: { label: 'Formulario/Modal', icon: '📋' },
+    [IssueType.CONSOLE_ERROR]: { label: 'Error de Consola', icon: '🐛' },
+    [IssueType.PERFORMANCE]: { label: 'Rendimiento', icon: '⚡' },
+    [IssueType.ACCESSIBILITY]: { label: 'Accesibilidad', icon: '♿' },
   };
 
   const sev = severityConfig[issue.severity] || severityConfig[IssueSeverity.LOW];

@@ -102,9 +102,9 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
 
   const { elementDiffsMap, fullPageDiff } = useMemo(() => {
     const map: Record<string, VisualDiff> = {};
-    var fullPage: VisualDiff | undefined;
-    for (var i = 0; i < report.visualDiffs.length; i++) {
-      var diff = report.visualDiffs[i];
+    let fullPage: VisualDiff | undefined;
+    for (let i = 0; i < report.visualDiffs.length; i++) {
+      const diff = report.visualDiffs[i];
       if (diff.diffType === 'full_page') {
         fullPage = diff;
       } else if (diff.diffType === 'element' && diff.issueId) {
@@ -114,7 +114,7 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
     return { elementDiffsMap: map, fullPageDiff: fullPage };
   }, [report.visualDiffs]);
 
-  var isBaseline = report.baselineInfo?.isManual;
+  const isBaseline = report.baselineInfo?.isManual;
 
   async function handleToggleBaseline() {
     setBaselineLoading(true);
