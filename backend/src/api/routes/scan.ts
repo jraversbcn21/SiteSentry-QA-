@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../database/client';
 import { getDb } from '../../database/db';
-import { scanQueue } from '../../queue/queue';
+import { getScanQueue } from '../../queue/queue';
 import { ScanStatus, FlowInfo } from '../../types';
 
 export const scanRoutes = Router();
@@ -74,7 +74,12 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
       },
     });
 
-    await scanQueue.add('process-scan', {
+    var queue = getScanQueue();
+    if (!queue) {
+      return res.status(503).json({ error: 'Servicio de cola no disponible (Redis no esta corriendo). El scan no pudo ser encolado.' });
+    }
+
+    await queue.add('process-scan', {
       scanId: scan.id,
       url: normalizedUrl,
       config: jobConfig,
@@ -107,10 +112,13 @@ scanRoutes.get('/:id/status', async (req: Request, res: Response) => {
 
     let jobProgress = null;
     try {
-      const jobs = await scanQueue.getJobs(['active', 'waiting']);
-      const job = jobs.find((j) => j.data?.scanId === id);
-      if (job) {
-        jobProgress = job.progress;
+      var statusQueue = getScanQueue();
+      if (statusQueue) {
+        var jobs = await statusQueue.getJobs(['active', 'waiting']);
+        var job = jobs.find((j) => j.data?.scanId === id);
+        if (job) {
+          jobProgress = job.progress;
+        }
       }
     } catch {
       // Ignorar errores de cola
