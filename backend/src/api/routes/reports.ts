@@ -80,6 +80,7 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       description: i.description,
       metadata: i.metadata ? JSON.parse(i.metadata) : null,
       screenshot_path: i.screenshot_path || null,
+      stepIndex: (i as any).step_index ?? null,
       createdAt: i.created_at,
     }));
 
@@ -90,6 +91,62 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       byType[issue.type] = (byType[issue.type] || 0) + 1;
       bySeverity[issue.severity] = (bySeverity[issue.severity] || 0) + 1;
     }
+
+    // Build per-step results if flow scan
+    var flow: { name: string; steps: Array<{ index: number; action: string; url?: string; selector?: string; value?: string; ms?: number; key?: string }> } | undefined;
+    var steps: Array<{
+      index: number;
+      action: string;
+      label: string;
+      issues: any[];
+      fullPageScreenshot: string | null;
+      summary: { total: number; byType: Record<string, number>; bySeverity: Record<string, number> };
+    }> | undefined;
+
+    function buildStepLabel(step: { action: string; url?: string; selector?: string; value?: string; ms?: number; key?: string }): string {
+      if (step.action === 'navigate' && step.url) return 'Navegar a ' + step.url.replace(/^https?:\/\//, '').substring(0, 40);
+      if (step.action === 'click' && step.selector) return 'Click en ' + step.selector;
+      if (step.action === 'type' && step.selector) return 'Escribir en ' + step.selector;
+      if (step.action === 'wait' && step.ms) return 'Esperar ' + step.ms + 'ms';
+      if (step.action === 'select' && step.selector) return 'Seleccionar en ' + step.selector;
+      if (step.action === 'hover' && step.selector) return 'Hover en ' + step.selector;
+      if (step.action === 'press' && step.key) return 'Presionar ' + step.key;
+      if (step.action === 'checkpoint') return 'Checkpoint';
+      return 'Paso ' + step.action;
+    }
+
+    try {
+      var configObj = JSON.parse(scan.config);
+      if (configObj.flow && configObj.flow.steps) {
+        var flowSteps = configObj.flow.steps as Array<{ action: string; url?: string; selector?: string; value?: string; ms?: number; key?: string }>;
+        flow = { name: configObj.flow.name, steps: flowSteps.map(function(s: any, i: number) { return { index: i, ...s }; }) };
+
+        steps = flowSteps.map(function(step: { action: string; url?: string; selector?: string; value?: string; ms?: number; key?: string }, index: number) {
+          var stepIssues = parsedIssues.filter(function(issue: any) { return issue.stepIndex === index; });
+          var stepByType: Record<string, number> = {};
+          var stepBySeverity: Record<string, number> = {};
+          for (var si = 0; si < stepIssues.length; si++) {
+            var sIssue = stepIssues[si];
+            stepByType[sIssue.type] = (stepByType[sIssue.type] || 0) + 1;
+            stepBySeverity[sIssue.severity] = (stepBySeverity[sIssue.severity] || 0) + 1;
+          }
+
+          var label = buildStepLabel(step);
+
+          var stepScreenshotPath = path.join(process.cwd(), 'data', 'screenshots', scan.id, 'step-' + index + '-full.png');
+          var stepScreenshot = fs.existsSync(stepScreenshotPath) ? scan.id + '/step-' + index + '-full.png' : null;
+
+          return {
+            index: index,
+            action: step.action,
+            label: label,
+            issues: stepIssues,
+            fullPageScreenshot: stepScreenshot,
+            summary: { total: stepIssues.length, byType: stepByType, bySeverity: stepBySeverity },
+          };
+        });
+      }
+    } catch {}
 
     const fullPagePath = path.join(process.cwd(), 'data', 'screenshots', scan.id, 'full.png');
     const fullPageScreenshot = fs.existsSync(fullPagePath) ? `${scan.id}/full.png` : null;
@@ -151,6 +208,8 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       completedAt: scan.completed_at,
       issues: parsedIssues,
       fullPageScreenshot,
+      flow,
+      steps,
       visualDiffs: parsedVisualDiffs,
       baselineInfo,
       summary: {

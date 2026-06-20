@@ -112,6 +112,8 @@ export interface ReportResponse {
     createdAt: string;
   }>;
   fullPageScreenshot?: string | null;
+  flow?: { name: string; steps: Array<{ index: number; action: string; url?: string; selector?: string; value?: string; ms?: number; key?: string }> };
+  steps?: StepResult[];
   visualDiffs: VisualDiff[];
   baselineInfo: BaselineInfo | null;
   summary: {
