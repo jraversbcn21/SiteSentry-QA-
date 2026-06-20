@@ -30,6 +30,10 @@ export const scanApi = {
     });
     return response.data;
   },
+
+  setBaseline: async (scanId: string, isBaseline: boolean): Promise<void> => {
+    await api.post(`/scans/${scanId}/set-baseline`, { isBaseline });
+  },
 };
 
 export default api;
