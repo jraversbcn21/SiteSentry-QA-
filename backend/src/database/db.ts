@@ -74,6 +74,7 @@ export function getDb(): Database.Database {
         baseline_scan_id TEXT NOT NULL,
         diff_type TEXT NOT NULL,
         issue_id TEXT,
+        baseline_issue_id TEXT,
         element_identifier TEXT,
         diff_percentage REAL NOT NULL,
         diff_image_path TEXT,
@@ -88,6 +89,15 @@ export function getDb(): Database.Database {
   } catch (e: any) {
     if (!e.message.includes('already exists')) {
       console.warn('Migration warning (visual_diffs):', e.message);
+    }
+  }
+
+  // Migracion: agregar baseline_issue_id a visual_diffs (Fase 2 - Fix)
+  try {
+    db.exec('ALTER TABLE visual_diffs ADD COLUMN baseline_issue_id TEXT');
+  } catch (e: any) {
+    if (!e.message.includes('duplicate column name')) {
+      console.warn('Migration warning (baseline_issue_id):', e.message);
     }
   }
 

@@ -172,8 +172,10 @@ async function runVisualRegression(params: RunVisualRegressionParams) {
 
       if (!matchedBaseline) continue;
 
-      var baselineIssuePath = path.join(baselineDir, matchedBaseline.id + '.png');
+      var baselineIssueId = matchedBaseline.id;
+      var baselineIssuePath = path.join(baselineDir, baselineIssueId + '.png');
 
+      if (!fs.existsSync(currentIssuePath)) continue;
       if (!fs.existsSync(baselineIssuePath)) continue;
 
       try {
@@ -182,8 +184,8 @@ async function runVisualRegression(params: RunVisualRegressionParams) {
         fs.writeFileSync(diffIssuePath, PNG.sync.write(elDiffResult.diffImage));
         var elDiffId = randomUUID();
         db.prepare(
-          'INSERT INTO visual_diffs (id, scan_id, baseline_scan_id, diff_type, issue_id, element_identifier, diff_percentage, diff_image_path, threshold_used, created_at) VALUES (?, ?, ?, \'element\', ?, ?, ?, ?, ?, ?)'
-        ).run(elDiffId, scanId, baselineScan.id, issueId, elementIdentifier, elDiffResult.diffPercentage, scanId + '/diff-' + issueId + '.png', threshold, new Date().toISOString());
+          'INSERT INTO visual_diffs (id, scan_id, baseline_scan_id, diff_type, issue_id, baseline_issue_id, element_identifier, diff_percentage, diff_image_path, threshold_used, created_at) VALUES (?, ?, ?, \'element\', ?, ?, ?, ?, ?, ?, ?)'
+        ).run(elDiffId, scanId, baselineScan.id, issueId, baselineIssueId, elementIdentifier, elDiffResult.diffPercentage, scanId + '/diff-' + issueId + '.png', threshold, new Date().toISOString());
       } catch (err) {
         console.debug('[ScanWorker] Element diff fallo para issue ' + issueId + ':', err);
       }

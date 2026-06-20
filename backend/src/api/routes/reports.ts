@@ -103,6 +103,7 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       baseline_scan_id: string;
       diff_type: string;
       issue_id: string | null;
+      baseline_issue_id: string | null;
       element_identifier: string | null;
       diff_percentage: number;
       diff_image_path: string | null;
@@ -114,8 +115,9 @@ reportsRoutes.get('/:id', async (req: Request, res: Response) => {
       id: d.id,
       diffType: d.diff_type,
       baselineScanId: d.baseline_scan_id,
+      baselineIssueId: d.baseline_issue_id || undefined,
       diffPercentage: d.diff_percentage,
-      diffImagePath: d.diff_image_path || '',
+      diffImagePath: d.diff_image_path,
       thresholdUsed: d.threshold_used,
       elementIdentifier: d.element_identifier || undefined,
       issueId: d.issue_id || undefined,

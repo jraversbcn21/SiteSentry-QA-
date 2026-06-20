@@ -81,6 +81,7 @@ export interface VisualDiff {
   id: string;
   diffType: 'full_page' | 'element';
   baselineScanId: string;
+  baselineIssueId?: string;
   diffPercentage: number;
   diffImagePath: string;
   thresholdUsed: number;

@@ -54,6 +54,7 @@ export interface VisualDiff {
   thresholdUsed: number;
   elementIdentifier?: string;
   issueId?: string;
+  baselineIssueId?: string;
 }
 
 export interface BaselineInfo {

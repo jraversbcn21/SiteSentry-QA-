@@ -133,19 +133,6 @@ export default function ErrorCard({ issue, visualDiff }: ErrorCardProps) {
               alt={issue.description}
             />
           )}
-          {visualDiff && (
-            <div className="error-card-visual-diff">
-              <VisualDiffViewer
-                baselineSrc={visualDiff.baselineScanId + '/' + issue.id + '.png'}
-                currentSrc={issue.screenshot_path || ''}
-                diffSrc={visualDiff.diffImagePath}
-                diffPercentage={visualDiff.diffPercentage}
-                threshold={visualDiff.thresholdUsed}
-                alt={issue.description}
-                compact
-              />
-            </div>
-          )}
           <div className="metadata-actions">
             <button className="copy-details-btn" onClick={handleCopy}>
               {copied ? '✓ Copiado!' : '📋 Copiar detalles'}
@@ -174,6 +161,20 @@ export default function ErrorCard({ issue, visualDiff }: ErrorCardProps) {
             </div>
           )}
         </details>
+      )}
+
+      {visualDiff && visualDiff.baselineIssueId && (
+        <div className="error-card-visual-diff">
+          <VisualDiffViewer
+            baselineSrc={visualDiff.baselineScanId + '/' + visualDiff.baselineIssueId + '.png'}
+            currentSrc={issue.screenshot_path || ''}
+            diffSrc={visualDiff.diffImagePath}
+            diffPercentage={visualDiff.diffPercentage}
+            threshold={visualDiff.thresholdUsed}
+            alt={issue.description}
+            compact
+          />
+        </div>
       )}
     </div>
   );
