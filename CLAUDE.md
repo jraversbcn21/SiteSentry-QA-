@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SiteSentry QA is a single-page functional web analyzer. Given one URL, it opens that page in a headless browser, intercepts network traffic, scrolls through the page, and runs 9 checkers to detect functional and quality problems. It does NOT crawl or follow links.
 
-Supports interactive multi-step flows (login, search, add to cart) via JSON step definitions or Playwright codegen script import. Includes visual regression detection comparing screenshots between scans of the same URL using pixelmatch. All user-facing text is in Spanish.
+Supports interactive multi-step flows (login, search, add to cart) via JSON step definitions or Playwright codegen script import. Includes visual regression detection comparing screenshots between scans of the same URL using pixelmatch. Includes Groq LLM integration for AI-powered issue explanations. All user-facing text is in Spanish.
 
 ## Commands
 
 ### Backend (from `backend/`)
 - `npm run dev` — Start API server with tsx watch (hot reload, port 3001)
-- `npm run dev:worker` — Start BullMQ worker with tsx watch
+- `npm run dev:worker` — Start worker with tsx watch (in-process, no Redis required)
 - `npm run build` — TypeScript compile (`tsc`)
 - `npx tsc --noEmit` — Type-check without emitting
 - `npx jest --no-coverage` — Run test suite
@@ -24,28 +24,33 @@ Supports interactive multi-step flows (login, search, add to cart) via JSON step
 
 ### Running the app requires 3 terminals
 1. `cd backend && npm run dev` (API on port 3001)
-2. `cd backend && npm run dev:worker` (BullMQ worker, requires Redis)
+2. `cd backend && npm run dev:worker` (Worker process, in-process)
 3. `cd frontend && npm run dev` (Vite on port 5173)
 
 ## Architecture
 
 ### Full Pipeline
-`POST /api/scan` → SQLite creates Scan row → BullMQ job queued → Worker picks up job → Playwright opens page → [Flow mode: execute steps (click, type, navigate...)] → PageAnalyzer intercepts network + scrolls → 9 Checkers run (per step in flow mode) → Issues + screenshots saved (per step in flow mode) → Visual regression diff vs baseline (pixelmatch) → Frontend polls `/api/scan/:id/status` until COMPLETED → Fetches `/api/reports/:id`
+`POST /api/scan` → SQLite creates Scan row → In-process queue adds job → Worker picks up job → Playwright opens page → [Flow mode: execute steps (click, type, navigate...)] → PageAnalyzer intercepts network + scrolls → 9 Checkers run (per step in flow mode) → Issues + screenshots saved (per step in flow mode) → Visual regression diff vs baseline (pixelmatch) → Frontend polls `/api/scan/:id/status` until COMPLETED → Fetches `/api/reports/:id`
+
+### Runtime Environment
+**No external services required for development.** The app runs entirely self-contained with SQLite (file-based) and an in-process EventEmitter-based job queue. This replaces the previous BullMQ + Redis + Prisma + PostgreSQL stack.
 
 ### Backend Key Files
 - **`src/analyzer/PageAnalyzer.ts`** — Core engine. Creates a BrowserContext with a realistic fingerprint (userAgent, locale, Sec-CH-UA headers), intercepts all network requests/responses/failures, captures console errors, performs full-page scroll. Returns `PageAnalysis` with `page`, `NetworkEvent[]`, `ConsoleEvent[]`, `loadTime`, `scrollHeight`.
 - **`src/checkers/`** — 9 checkers, each implements `IChecker.check(url, page, networkEvents, consoleErrors?)`. See checkers section below.
-- **`src/workers/ScanWorker.ts`** — Orchestrates the full pipeline: launch browser → analyze → [flow steps] → run checkers (per step in flow mode, passing `analysis.consoleErrors` as 4th arg) → capture screenshots (per step in flow mode) → run visual regression (pixelmatch) → save issues. Anti-bot blocks saved as `FAILED_API/HIGH` issue instead of failing.
-- **`src/api/routes/scan.ts`** — POST scan (accepts `flow`, `flowId`, `visualDiffThreshold`), GET status with per-step progress.
+- **`src/workers/ScanWorker.ts`** — Orchestrates the full pipeline: launch browser → analyze → [flow steps] → run checkers (per step in flow mode) → capture screenshots (per step in flow mode) → run visual regression (pixelmatch) → save issues. Anti-bot blocks saved as `FAILED_API/HIGH` issue instead of failing.
+- **`src/workers/index.ts`** — Worker process: listens to in-process queue, executes scan jobs via `processScanJob`. Uses `SimpleQueue` (EventEmitter).
+- **`src/api/routes/scan.ts`** — POST scan (accepts `flow`, `flowId`, `visualDiffThreshold`), GET status with per-step progress. Uses `better-sqlite3` directly — no Prisma.
 - **`src/api/routes/reports.ts`** — GET report (includes `fullPageScreenshot`, `screenshot_path` per issue, `visualDiffs[]`, `baselineInfo`, `flow`, per-step `steps[]` with summaries and screenshots), GET all reports list.
 - **`src/api/routes/flows.ts`** — CRUD for reusable interactive flows: `GET /api/flows`, `GET /api/flows/:id`, `POST /api/flows`, `PUT /api/flows/:id`, `DELETE /api/flows/:id`.
 - **`src/api/server.ts`** — Express app. Routes: `/api/scan`, `/api/reports`, `/api/flows`, `/screenshots/:scanId/:filename` (serves PNG files with path traversal protection and UUID validation), `/api/scans/:id/set-baseline` (marks/unmarks manual baseline).
 - **`src/types/index.ts`** — Shared enums (`IssueType`, `IssueSeverity`, `ScanStatus`), interfaces (`Issue`, `IChecker`, `VisualDiff`, `BaselineInfo`, `FlowStep`, `FlowInfo`, `StepResult`, `ReportResponse`, `ScanConfig`).
 - **`src/database/db.ts`** — SQLite schema via `better-sqlite3`. Tables: `scans`, `issues`, `visual_diffs`, `flows`. Migrations via inline `ALTER TABLE`/`CREATE TABLE` with try/catch for idempotency.
+- **`src/queue/queue.ts`** — In-process job queue using `EventEmitter`. No Redis, no BullMQ. Async processing with `emitAsync`.
 
 ### Dependencies (backend)
-- **Runtime:** `express`, `cors`, `helmet`, `playwright`, `better-sqlite3`, `bullmq`, `ioredis`, `zod`, `pixelmatch`, `pngjs`, `sharp`, `@axe-core/playwright`, `@prisma/client`
-- **Dev:** `typescript`, `tsx`, `@types/express`, `@types/cors`, `@types/node`, `@types/better-sqlite3`, `@types/jest`, `@types/pngjs`, `prisma`
+- **Runtime:** `express`, `cors`, `helmet`, `playwright`, `better-sqlite3`, `zod`, `pixelmatch`, `pngjs`, `sharp`, `@axe-core/playwright`
+- **Dev:** `typescript`, `tsx`, `@types/express`, `@types/cors`, `@types/node`, `@types/better-sqlite3`, `@types/jest`, `@types/pngjs`
 
 ### Checkers (9)
 | Checker | IssueType | Detecta |
@@ -77,7 +82,7 @@ Additional `IssueType.FLOW_ERROR` (severity HIGH) is generated by ScanWorker (no
 | `FLOW_ERROR` | HIGH | ScanWorker | Flow step execution failure |
 
 ### Frontend Key Files
-- **`src/pages/Home.tsx`** — URL input + flow selector dropdown + "Nuevo flujo" button + FlowEditor modal + scan progress polling.
+- **`src/pages/Home.tsx`** — URL input + flow selector dropdown + "Nuevo flujo" button + FlowEditor modal + scan progress polling. Settings icon (⚙️) in header linking to `/settings`.
 - **`src/pages/Report.tsx`** — Fetches and displays report.
 - **`src/components/ReportViewer/ReportViewer.tsx`** — Score, FlowTabs (per-step views when flow exists), filters, grouping by type, JSON/CSV export, full-page screenshot, visual regression section (VisualDiffViewer + baseline toggle). Contains `getTypeLabel()` and `getTypeIcon()`.
 - **`src/components/ErrorGroup/ErrorGroup.tsx`** — Group header per IssueType. Contains `typeConfig` with label, icon and color per type. Accepts `visualDiffsMap` to pass element diffs to ErrorCard. **Must be updated when adding new IssueType.**
@@ -87,11 +92,26 @@ Additional `IssueType.FLOW_ERROR` (severity HIGH) is generated by ScanWorker (no
 - **`src/components/VisualDiffViewer/VisualDiffViewer.tsx`** — Side-by-side slider comparing baseline vs current screenshot, diff.png overlay, percentage badge (red if over threshold, green if under). Supports compact mode for element diffs.
 - **`src/components/FlowEditor/FlowEditor.tsx`** — Flow editor with textarea for Playwright codegen paste, "Convertir" button (calls `parseCodegenScript`), editable step list with per-action fields, add/delete steps, save via API. Opens as modal from Home.tsx.
 - **`src/components/FlowTabs/FlowTabs.tsx`** — Horizontal tab bar for per-step navigation in reports. Each tab shows icon + label + issue count badge. Includes "Resumen" tab for combined view.
-- **`src/components/Settings/Settings.tsx`** — LLM configuration (Groq API key, model selection).
+- **`src/components/Settings/Settings.tsx`** — Groq LLM configuration (API key + model selection from 5 available models). Accessible via ⚙️ icon in header at `/settings`.
 - **`src/services/api.ts`** — Axios client hitting backend on port 3001. Methods: `startScan`, `getScanStatus`, `getReport`, `getReports`, `setBaseline`, `getFlows`, `getFlow`, `createFlow`, `updateFlow`, `deleteFlow`.
 - **`src/services/ai.ts`** — Groq LLM integration for explaining issues. Reads API key and model from localStorage.
 - **`src/services/codegenConverter.ts`** — Parses Playwright codegen scripts to `FlowStep[]` via regex. Supports goto, click, fill, waitForTimeout, selectOption, hover, press.
 - **`src/types/index.ts`** — Frontend mirrors of backend enums/interfaces. Includes `VisualDiff`, `BaselineInfo`, `FlowStep`, `FlowInfo`, `FlowDefinition`, `StepResult`. `Issue` includes `id?`, `screenshot_path?`, `stepIndex?`. `ReportResponse` includes `fullPageScreenshot?`, `visualDiffs[]`, `baselineInfo`, `flow?`, `steps?`.
+
+## Groq LLM Integration
+
+The Settings page (`/settings`, accessible via ⚙️ icon in the header) allows configuring the API key and model for AI-powered issue explanations.
+
+Available models:
+| Model ID | Description |
+|----------|-------------|
+| `llama-3.1-8b-instant` | Llama 3.1 8B (fast) |
+| `llama-3.3-70b-versatile` | Llama 3.3 70B (powerful) |
+| `deepseek-r1-distill-llama-70b` | DeepSeek R1 70B (reasoning) |
+| `openai/gpt-oss-120b` | GPT OSS 120B |
+| `qwen/qwen3.6-27b` | Qwen 3.6 27B |
+
+API key and selected model are stored in `localStorage` (keys: `sitesentry_groq_api_key`, `sitesentry_groq_model`). `services/ai.ts` reads these values for each AI explanation request, sends to Groq API with a Spanish system prompt, and returns the response.
 
 ## Screenshots (Phase 1 — Complete)
 
@@ -114,9 +134,11 @@ After screenshots and issue persistence, ScanWorker runs `runVisualRegression()`
 - **Best-effort**: diff failures never fail the scan. Each diff operation wrapped in try/catch.
 - **Baseline management**: `POST /api/scans/:id/set-baseline` marks/unmarks a scan as manual baseline. `is_baseline` column on `scans` table. Only one manual baseline per URL.
 
-**Frontend**: `VisualDiffViewer` component with interactive side-by-side slider (range input overlaid on CSS-clipped images), diff.png with highlighted pixels, percentage badge (red if > threshold, green if ≤ threshold). Full-page diffs shown in ReportViewer visual regression section; element diffs shown in ErrorCard details (compact mode, diff.png only).
+**Frontend**: `VisualDiffViewer` component with interactive side-by-side slider (range input overlaid on CSS-clipped images), diff.png with highlighted pixels, percentage badge (red if > threshold, green if ≤ threshold). Full-page diffs shown in ReportViewer visual regression section; element diffs shown in ErrorCard details (compact mode, diff.png + badge only).
 
 **DB**: `visual_diffs` table with `diff_type` (full_page/element), `diff_percentage`, `diff_image_path`, `baseline_issue_id`, `element_identifier`.
+
+**Dependencies**: `pixelmatch`, `pngjs`, `sharp`.
 
 ## Interactive Flows (Phase 3 — Complete)
 
@@ -186,6 +208,15 @@ Tables:
 - **`visual_diffs`** — id, scan_id, baseline_scan_id, diff_type, issue_id, baseline_issue_id, element_identifier, diff_percentage, diff_image_path, threshold_used, created_at
 - **`flows`** — id, name, steps, created_at, updated_at
 
+## Queue
+
+In-process job queue via `EventEmitter` (`src/queue/queue.ts`). Jobs are processed synchronously in the worker process. No external queue service required (no Redis, no BullMQ). The queue class (`SimpleQueue`) exposes:
+- `add(name, data)` — enqueue a job and return a Job object
+- `getJobs(types)` — list pending jobs
+- `on('process', callback)` — register the job processor
+
+The worker (`src/workers/index.ts`) registers the processor via `scanQueue.on('process', ...)` calling `processScanJob`.
+
 ## Adding a New Checker
 
 1. Add new value to `IssueType` enum in:
@@ -218,5 +249,3 @@ All user-facing text is in **Spanish**. Issue descriptions, checker output, fron
 | `DB_PATH` | `./data/sitesentry.db` | SQLite database path |
 | `PAGE_TIMEOUT` | `60000` | Page load timeout (ms) |
 | `VISUAL_DIFF_THRESHOLD` | `0.05` | pixelmatch threshold (0-1) |
-| `REDIS_URL` | (BullMQ default) | Redis connection for queue |
-| `DATABASE_URL` | — | PostgreSQL URL for Prisma (scan route) |
