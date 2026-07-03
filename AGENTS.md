@@ -8,6 +8,10 @@ SiteSentry QA is a single-page functional web analyzer. Given one URL, it opens 
 
 Supports interactive multi-step flows (login, search, add to cart) via JSON step definitions or Playwright codegen script import. Includes visual regression detection comparing screenshots between scans of the same URL using pixelmatch. Includes Groq LLM integration for AI-powered issue explanations.
 
+## ⚠️ Pending Work — Read Before Starting a New Session
+
+There is a full architecture/code audit at **[`docs/architecture-audit-2026-07-04.md`](docs/architecture-audit-2026-07-04.md)** with a phased execution plan (34 findings, 38 ordered tasks T01–T38) that has **not been executed yet**. It is the single source of truth for the next refactoring session — read it before proposing architectural changes to this codebase, and check whether the task being asked for is already scoped there (with dependencies, priority, and complexity already worked out) instead of re-deriving the plan from scratch. Execute it phase by phase (Phase 1 → Phase 8), not all at once, and re-verify each finding against current code before acting on it since the codebase may have changed since the audit date.
+
 ## Commands
 
 ### Backend (`backend/`)
