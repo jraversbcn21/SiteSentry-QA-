@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import fs from 'fs';
+import rateLimit from 'express-rate-limit';
 import { scanRoutes } from './routes/scan';
 import { reportsRoutes } from './routes/reports';
 import { flowsRoutes } from './routes/flows';
@@ -39,6 +40,16 @@ app.use(express.urlencoded({ extended: true }));
 
 // Auth middleware for /api/* routes
 app.use('/api', authMiddleware);
+
+// Rate limiting for scan creation
+var scanLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiadas solicitudes. Intenta de nuevo en un minuto.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/scan', scanLimiter);
 
 // Health check
 app.get('/health', (_req, res) => {

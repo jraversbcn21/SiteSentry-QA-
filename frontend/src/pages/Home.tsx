@@ -3,9 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import URLInput from '../components/URLInput/URLInput';
 import ScanProgress from '../components/ScanProgress/ScanProgress';
 import FlowEditor from '../components/FlowEditor/FlowEditor';
-import { scanApi } from '../services/api';
+import { scanApi, unwrapApiError } from '../services/api';
 import { ScanStatus } from '../types';
 import type { FlowDefinition, FlowStep, ScanResponse, ScanStatusResponse } from '../types';
+import { getStatusLabel } from '../config/issueTypeConfig';
 import './Home.css';
 
 export default function Home() {
@@ -80,12 +81,7 @@ export default function Home() {
         createdAt: scan.createdAt,
       });
     } catch (err: any) {
-      const message =
-        err?.response?.data?.error ||
-        err?.response?.data?.details?.[0]?.message ||
-        err?.message ||
-        'Error al iniciar el análisis';
-      setError(message);
+      setError(unwrapApiError(err));
     } finally {
       setIsStarting(false);
     }
@@ -301,12 +297,3 @@ export default function Home() {
   );
 }
 
-function getStatusLabel(status: ScanStatus): string {
-  switch (status) {
-    case ScanStatus.PENDING: return '⏳ Pendiente';
-    case ScanStatus.RUNNING: return '🔄 Ejecutando';
-    case ScanStatus.COMPLETED: return '✅ Completado';
-    case ScanStatus.FAILED: return '❌ Fallido';
-    default: return status;
-  }
-}

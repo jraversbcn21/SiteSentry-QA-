@@ -1,35 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { getDb } from '../../database/db';
 import { getScanQueue } from '../../queue/queue';
 import { ScanStatus, FlowInfo } from '../../types';
+import { ScanRequestSchema } from '../schemas';
 
 export const scanRoutes = Router();
-
-const FlowStepSchema = z.object({
-  action: z.enum(['navigate', 'click', 'type', 'wait', 'select', 'hover', 'press', 'checkpoint']),
-  url: z.string().optional(),
-  selector: z.string().optional(),
-  value: z.string().optional(),
-  ms: z.number().int().min(0).optional(),
-  key: z.string().optional(),
-});
-
-const ScanRequestSchema = z.object({
-  url: z.string().url('URL invalida - debe incluir http:// o https://'),
-  visualDiffThreshold: z.number().min(0).max(1).optional(),
-  flow: z.object({
-    name: z.string().min(1).max(200),
-    steps: z.array(FlowStepSchema).min(1),
-  }).optional(),
-  flowId: z.string().optional(),
-  config: z
-    .object({
-      timeout: z.number().int().min(5000).max(120000).optional(),
-    })
-    .optional(),
-});
 
 // POST /api/scan - Iniciar analisis de una pagina
 scanRoutes.post('/', async (req: Request, res: Response) => {

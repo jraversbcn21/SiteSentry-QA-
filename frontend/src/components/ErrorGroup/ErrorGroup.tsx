@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Issue, IssueType, VisualDiff } from '../../types';
 import ErrorCard from '../ErrorCard/ErrorCard';
+import { typeConfig } from '../../config/issueTypeConfig';
 import './ErrorGroup.css';
 
 interface ErrorGroupProps {
@@ -9,19 +10,6 @@ interface ErrorGroupProps {
   defaultOpen?: boolean;
   visualDiffsMap?: Record<string, VisualDiff>;
 }
-
-const typeConfig: Record<IssueType, { label: string; icon: string; color: string }> = {
-  [IssueType.BROKEN_RESOURCE]: { label: 'Recursos Rotos', icon: '🖼️', color: '#ef4444' },
-  [IssueType.FAILED_API]: { label: 'APIs Fallidas', icon: '🔌', color: '#f97316' },
-  [IssueType.INTERACTIVITY]: { label: 'Interactividad', icon: '👆', color: '#eab308' },
-  [IssueType.EMPTY_CONTENT]: { label: 'Contenido Vacio', icon: '📭', color: '#8b5cf6' },
-  [IssueType.LAZY_LOAD]: { label: 'Carga Diferida', icon: '⏳', color: '#06b6d4' },
-  [IssueType.FORM_MODAL]: { label: 'Formularios/Modales', icon: '📋', color: '#10b981' },
-  [IssueType.CONSOLE_ERROR]: { label: 'Errores de Consola', icon: '🐛', color: '#dc2626' },
-  [IssueType.PERFORMANCE]: { label: 'Rendimiento', icon: '⚡', color: '#d97706' },
-  [IssueType.ACCESSIBILITY]: { label: 'Accesibilidad', icon: '♿', color: '#7c3aed' },
-  [IssueType.FLOW_ERROR]: { label: 'Error de Flujo', icon: '🔀', color: '#dc2626' },
-};
 
 export default function ErrorGroup({ type, issues, defaultOpen = false, visualDiffsMap }: ErrorGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);

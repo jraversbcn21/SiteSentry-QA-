@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Issue, IssueSeverity, IssueType, VisualDiff } from '../../types';
+import { Issue, IssueSeverity, VisualDiff } from '../../types';
 import { explainIssue } from '../../services/ai';
+import { typeConfig, severityConfig } from '../../config/issueTypeConfig';
 import ScreenshotThumb from '@/components/ScreenshotThumb/ScreenshotThumb';
 import VisualDiffViewer from '@/components/VisualDiffViewer/VisualDiffViewer';
 import './ErrorCard.css';
@@ -17,27 +18,8 @@ export default function ErrorCard({ issue, visualDiff }: ErrorCardProps) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [showAi, setShowAi] = useState(false);
 
-  const severityConfig = {
-    [IssueSeverity.HIGH]: { label: 'Alto', className: 'severity-high', icon: '🔴' },
-    [IssueSeverity.MEDIUM]: { label: 'Medio', className: 'severity-medium', icon: '🟡' },
-    [IssueSeverity.LOW]: { label: 'Bajo', className: 'severity-low', icon: '🔵' },
-  };
-
-  const typeConfig: Record<IssueType, { label: string; icon: string }> = {
-    [IssueType.BROKEN_RESOURCE]: { label: 'Recurso Roto', icon: '🖼️' },
-    [IssueType.FAILED_API]: { label: 'API Fallida', icon: '🔌' },
-    [IssueType.INTERACTIVITY]: { label: 'Interactividad', icon: '👆' },
-    [IssueType.EMPTY_CONTENT]: { label: 'Contenido Vacio', icon: '📭' },
-    [IssueType.LAZY_LOAD]: { label: 'Carga Diferida', icon: '⏳' },
-    [IssueType.FORM_MODAL]: { label: 'Formulario/Modal', icon: '📋' },
-    [IssueType.CONSOLE_ERROR]: { label: 'Error de Consola', icon: '🐛' },
-    [IssueType.PERFORMANCE]: { label: 'Rendimiento', icon: '⚡' },
-    [IssueType.ACCESSIBILITY]: { label: 'Accesibilidad', icon: '♿' },
-    [IssueType.FLOW_ERROR]: { label: 'Error de Flujo', icon: '🔀' },
-};
-
   const sev = severityConfig[issue.severity] || severityConfig[IssueSeverity.LOW];
-  const type = typeConfig[issue.type] || { label: issue.type, icon: '⚠️' };
+  const type = typeConfig[issue.type] || { label: issue.type, icon: '⚠️', color: '#94a3b8' };
 
   const handleCopy = async () => {
     const typeLabel = typeConfig[issue.type]?.label || issue.type;

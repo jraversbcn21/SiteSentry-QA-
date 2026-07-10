@@ -132,7 +132,7 @@ async function runVisualRegression(params: RunVisualRegressionParams) {
 
     for (var i = 0; i < allIssues.length; i++) {
       var issue = allIssues[i];
-      var issueId = (issue as any).id as string;
+      var issueId = issue.id;
       if (issue.severity !== 'HIGH') continue;
       if (!issue.screenshot_path) continue;
 
@@ -330,19 +330,25 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
             } else {
               await currentPage.keyboard.press(step.key);
             }
+          } else if (step.action === 'checkpoint') {
+            // checkpoint es un marcador sin accion — solo dispara checkers/screenshots
+          } else {
+            var unrecognizedMsg = 'Accion de paso no reconocida: ' + (step.action || '(vacia)');
+            throw new Error(unrecognizedMsg);
           }
         } catch (stepErr) {
           var errorMsg = stepErr instanceof Error ? stepErr.message : String(stepErr);
           console.warn('[ScanWorker] Error en paso ' + stepIdx + ' (' + step.action + '):', errorMsg);
           allIssues.push({
-            type: 'FLOW_ERROR' as any,
-            severity: 'HIGH' as any,
+            id: randomUUID(),
+            type: 'FLOW_ERROR' as IssueType,
+            severity: 'HIGH' as IssueSeverity,
             url: url,
             description: 'Error en paso ' + stepIdx + ' (' + step.action + '): ' + errorMsg,
             metadata: { stepIndex: stepIdx, action: step.action, error: errorMsg.substring(0, 300) },
             screenshot_path: undefined,
-          } as any);
-          (allIssues[allIssues.length - 1] as any).stepIndex = stepIdx;
+            stepIndex: stepIdx,
+          });
 
           if (step.action === 'navigate') {
             console.warn('[ScanWorker] Navegacion fallida, abortando flujo');
@@ -363,7 +369,7 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
             try {
               var issues = await checker.check(url, currentPage, stepNetworkEvents, stepConsoleErrors);
               for (var ii = 0; ii < issues.length; ii++) {
-                (issues[ii] as any).stepIndex = stepIdx;
+                issues[ii].stepIndex = stepIdx;
               }
               allIssues.push(...issues);
               console.log('[ScanWorker] ' + checker.name + ' (paso ' + stepIdx + '): ' + issues.length + ' issues');
@@ -376,7 +382,7 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
             var stepFullPath = path.join(screenshotDir, 'step-' + stepIdx + '-full.png');
             await currentPage.screenshot({ path: stepFullPath, fullPage: true, type: 'png' });
 
-            var stepIssues = allIssues.filter(function(iss: any) { return (iss as any).stepIndex === stepIdx; });
+            var stepIssues = allIssues.filter(function(iss) { return iss.stepIndex === stepIdx; });
             for (var si = 0; si < stepIssues.length; si++) {
               var sIssue = stepIssues[si];
               if (sIssue.severity !== 'HIGH') continue;
@@ -384,10 +390,10 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
               if (!selector) continue;
               try {
                 var el = currentPage.locator(selector).first();
-                var issueId = (sIssue as any).id;
+                var issueId = sIssue.id;
                 if (!issueId) {
                   issueId = randomUUID();
-                  (sIssue as any).id = issueId;
+                  sIssue.id = issueId;
                 }
                 var elFileName = 'step-' + stepIdx + '-' + issueId + '.png';
                 var elFilePath = path.join(screenshotDir, elFileName);
@@ -404,8 +410,8 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
       // Asignar IDs a issues del flujo antes de persistir
       for (var fi = 0; fi < allIssues.length; fi++) {
         var flowIssue = allIssues[fi];
-        if (!(flowIssue as any).id) {
-          (flowIssue as any).id = randomUUID();
+        if (!flowIssue.id) {
+          flowIssue.id = randomUUID();
         }
       }
 
@@ -427,7 +433,7 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
 
       // Asignar IDs a issues antes de screenshots (necesario para nombres de archivo)
       for (const issue of allIssues) {
-        (issue as any).id = randomUUID();
+        issue.id = randomUUID();
       }
 
       // --- Captura de screenshots ---
@@ -452,7 +458,7 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
 
           try {
             const el = analysis.page.locator(selector).first();
-            const fileName = `${(issue as any).id}.png`;
+            const fileName = `${issue.id}.png`;
             const filePath = path.join(screenshotDir, fileName);
             await el.screenshot({ path: filePath, type: 'png' });
             issue.screenshot_path = `${scanId}/${fileName}`;
@@ -480,7 +486,7 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
       const insertMany = db.transaction((issues: import('../types').Issue[]) => {
         for (const issue of issues) {
           insertIssue.run(
-            (issue as any).id,
+            issue.id,
             scanId,
             issue.type,
             issue.severity,
@@ -489,7 +495,7 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
             issue.description,
             issue.metadata ? JSON.stringify(issue.metadata) : null,
             issue.screenshot_path || null,
-            (issue as any).stepIndex ?? null,
+            issue.stepIndex ?? null,
             new Date().toISOString()
           );
         }

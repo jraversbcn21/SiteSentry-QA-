@@ -28,6 +28,7 @@ export enum IssueSeverity {
 }
 
 export interface Issue {
+  id?: string;
   type: IssueType;
   severity: IssueSeverity;
   url: string;
@@ -35,6 +36,7 @@ export interface Issue {
   description: string;
   metadata?: Record<string, unknown>;
   screenshot_path?: string;
+  stepIndex?: number;
 }
 
 export interface ScanConfig {

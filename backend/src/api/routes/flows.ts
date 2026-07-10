@@ -1,8 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { getDb } from '../../database/db';
+import { FlowStepSchema } from '../schemas';
+import { z } from 'zod';
 
 export const flowsRoutes = Router();
+
+var CreateFlowSchema = z.object({
+  name: z.string().min(1).max(200),
+  steps: z.array(FlowStepSchema).min(1),
+});
 
 // GET /api/flows - Listar flujos
 flowsRoutes.get('/', (_req: Request, res: Response) => {
@@ -54,16 +61,15 @@ flowsRoutes.get('/:id', (req: Request, res: Response) => {
 // POST /api/flows - Crear flujo
 flowsRoutes.post('/', (req: Request, res: Response) => {
   try {
-    var { name, steps } = req.body;
-    if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 200) {
-      return res.status(400).json({ error: 'Nombre requerido (1-200 caracteres)' });
+    var validation = CreateFlowSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Datos de entrada invalidos',
+        details: validation.error.errors,
+      });
     }
-    if (!steps || !Array.isArray(steps) || steps.length === 0) {
-      return res.status(400).json({ error: 'Steps requerido (array no vacio)' });
-    }
-    for (var i = 0; i < steps.length; i++) {
-      if (!steps[i].action) return res.status(400).json({ error: 'Cada paso requiere una accion' });
-    }
+
+    var { name, steps } = validation.data;
 
     var db = getDb();
     var id = randomUUID();
@@ -85,6 +91,15 @@ flowsRoutes.put('/:id', (req: Request, res: Response) => {
     if (!existing) return res.status(404).json({ error: 'Flujo no encontrado' });
 
     var { name, steps } = req.body;
+    if (steps) {
+      var stepValidation = z.array(FlowStepSchema).min(1).safeParse(steps);
+      if (!stepValidation.success) {
+        return res.status(400).json({
+          error: 'Steps invalidos',
+          details: stepValidation.error.errors,
+        });
+      }
+    }
     var newName = name || existing.name;
     var newSteps = steps ? JSON.stringify(steps) : existing.steps;
     var now = new Date().toISOString();

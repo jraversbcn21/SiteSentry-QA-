@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReportViewer from '../components/ReportViewer/ReportViewer';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { scanApi } from '../services/api';
+import { scanApi, unwrapApiError } from '../services/api';
 import { ReportResponse } from '../types';
 import './Report.css';
 
@@ -19,30 +19,26 @@ export default function Report() {
       return;
     }
 
+    let ignore = false;
+
     const fetchReport = async () => {
       try {
         setLoading(true);
         setError('');
-        console.log('[Report] Fetching report for ID:', id);
         const data = await scanApi.getReport(id);
-        console.log('[Report] Report data received:', data);
-        console.log('[Report] Issues count:', data?.issues?.length || 0);
+        if (ignore) return;
         setReport(data);
       } catch (err: any) {
-        const errorMessage = err?.response?.data?.error || err?.message || 'Error al cargar el reporte. Por favor intenta nuevamente.';
-        console.error('[Report] Error fetching report:', err);
-        console.error('[Report] Error details:', {
-          message: err?.message,
-          status: err?.response?.status,
-          data: err?.response?.data,
-        });
-        setError(errorMessage);
+        if (ignore) return;
+        setError(unwrapApiError(err));
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     };
 
     fetchReport();
+
+    return () => { ignore = true; };
   }, [id, navigate]);
 
   if (loading) {

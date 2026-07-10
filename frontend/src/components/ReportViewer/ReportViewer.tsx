@@ -5,6 +5,7 @@ import ScreenshotThumb from '@/components/ScreenshotThumb/ScreenshotThumb';
 import VisualDiffViewer from '@/components/VisualDiffViewer/VisualDiffViewer';
 import FlowTabs from '@/components/FlowTabs/FlowTabs';
 import { scanApi } from '../../services/api';
+import { getTypeIcon, getTypeLabel, getStatusLabel } from '../../config/issueTypeConfig';
 import './ReportViewer.css';
 
 function downloadFile(content: string, filename: string, mimeType: string) {
@@ -90,12 +91,11 @@ function exportCSV(report: ReportResponse) {
 
 interface ReportViewerProps {
   report: ReportResponse;
-  onBaselineChange?: () => void;
 }
 
 const ALL_TYPES = Object.values(IssueType);
 
-export default function ReportViewer({ report, onBaselineChange }: ReportViewerProps) {
+export default function ReportViewer({ report }: ReportViewerProps) {
   const [filterType, setFilterType] = useState<IssueType | 'ALL'>('ALL');
   const [filterSeverity, setFilterSeverity] = useState<IssueSeverity | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,8 +130,8 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
     setBaselineLoading(true);
     try {
       await scanApi.setBaseline(report.id, !isBaseline);
-      if (onBaselineChange) onBaselineChange();
-      window.location.reload();
+      report.baselineInfo = { scanId: report.id, isManual: !isBaseline, createdAt: new Date().toISOString() };
+      setBaselineLoading(false);
     } catch {
       setBaselineLoading(false);
     }
@@ -155,12 +155,7 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
   const mediumCount = report.summary.bySeverity[IssueSeverity.MEDIUM] || 0;
   const lowCount = report.summary.bySeverity[IssueSeverity.LOW] || 0;
 
-  const statusLabel = {
-    [ScanStatus.COMPLETED]: '✅ Completado',
-    [ScanStatus.FAILED]: '❌ Fallido',
-    [ScanStatus.RUNNING]: '🔄 En ejecucion',
-    [ScanStatus.PENDING]: '⏳ Pendiente',
-  }[report.status] || report.status;
+  const statusLabel = getStatusLabel(report.status);
 
   const duration = report.completedAt && report.createdAt
     ? formatDuration(new Date(report.createdAt), new Date(report.completedAt))
@@ -387,38 +382,6 @@ export default function ReportViewer({ report, onBaselineChange }: ReportViewerP
       )}
     </div>
   );
-}
-
-function getTypeIcon(type: IssueType): string {
-  const icons: Record<IssueType, string> = {
-    [IssueType.BROKEN_RESOURCE]: '🖼️',
-    [IssueType.FAILED_API]: '🔌',
-    [IssueType.INTERACTIVITY]: '👆',
-    [IssueType.EMPTY_CONTENT]: '📭',
-    [IssueType.LAZY_LOAD]: '⏳',
-    [IssueType.FORM_MODAL]: '📋',
-    [IssueType.CONSOLE_ERROR]: '🐛',
-    [IssueType.PERFORMANCE]: '⚡',
-    [IssueType.ACCESSIBILITY]: '♿',
-    [IssueType.FLOW_ERROR]: '🔀',
-  };
-  return icons[type] || '⚠️';
-}
-
-function getTypeLabel(type: IssueType): string {
-  const labels: Record<IssueType, string> = {
-    [IssueType.BROKEN_RESOURCE]: 'Recursos Rotos',
-    [IssueType.FAILED_API]: 'APIs Fallidas',
-    [IssueType.INTERACTIVITY]: 'Interactividad',
-    [IssueType.EMPTY_CONTENT]: 'Contenido Vacio',
-    [IssueType.LAZY_LOAD]: 'Carga Diferida',
-    [IssueType.FORM_MODAL]: 'Formularios/Modales',
-    [IssueType.CONSOLE_ERROR]: 'Errores de Consola',
-    [IssueType.PERFORMANCE]: 'Rendimiento',
-    [IssueType.ACCESSIBILITY]: 'Accesibilidad',
-    [IssueType.FLOW_ERROR]: 'Error de Flujo',
-  };
-  return labels[type] || type;
 }
 
 function formatDuration(start: Date, end: Date): string {
