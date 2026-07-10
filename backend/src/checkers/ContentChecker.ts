@@ -1,6 +1,7 @@
 import { Page } from 'playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
 import { NetworkEvent } from '../analyzer/PageAnalyzer';
+import { visibilityCheckSnippet } from './domHelpers';
 
 export class ContentChecker implements IChecker {
   name = 'ContentChecker';
@@ -59,7 +60,7 @@ export class ContentChecker implements IChecker {
             var el = elements[i];
             var style = window.getComputedStyle(el);
             var rect = el.getBoundingClientRect();
-            var isVisible = style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0 && rect.height > 0;
+            var isVisible = ${visibilityCheckSnippet()} && rect.height > 0;
             if (isVisible) {
               var text = (el.textContent || '').trim().substring(0, 100);
               if (text.length > 0) results.push({ text: text, selector: errorSelectors[s] });

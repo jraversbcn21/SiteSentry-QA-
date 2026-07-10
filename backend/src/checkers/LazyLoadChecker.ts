@@ -1,6 +1,7 @@
 import { Page } from 'playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
 import { NetworkEvent } from '../analyzer/PageAnalyzer';
+import { visibilityCheckSnippet } from './domHelpers';
 
 export class LazyLoadChecker implements IChecker {
   name = 'LazyLoadChecker';
@@ -47,7 +48,7 @@ export class LazyLoadChecker implements IChecker {
             var el = elements[i];
             var rect = el.getBoundingClientRect();
             var style = window.getComputedStyle(el);
-            var isVisible = rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0;
+            var isVisible = rect.height > 0 && ${visibilityCheckSnippet()};
             if (isVisible) {
               stuckSpinners.push({
                 selector: spinnerSelectors[s],

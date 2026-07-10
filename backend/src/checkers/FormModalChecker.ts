@@ -1,6 +1,7 @@
 import { Page } from 'playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
 import { NetworkEvent } from '../analyzer/PageAnalyzer';
+import { visibilityCheckSnippet } from './domHelpers';
 
 export class FormModalChecker implements IChecker {
   name = 'FormModalChecker';
@@ -62,7 +63,7 @@ export class FormModalChecker implements IChecker {
             var el = elements[i];
             var style = window.getComputedStyle(el);
             var rect = el.getBoundingClientRect();
-            var isVisible = style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0 && rect.height > 100;
+            var isVisible = ${visibilityCheckSnippet()} && rect.height > 100;
             if (!isVisible) continue;
             var hasClose = el.querySelector('button[class*="close"], [aria-label="close"], [aria-label="Close"], .close, [class*="dismiss"]') !== null;
             var coversPage = rect.width > window.innerWidth * 0.5 && rect.height > window.innerHeight * 0.3;
@@ -96,7 +97,7 @@ export class FormModalChecker implements IChecker {
             var el = elements[i];
             var style = window.getComputedStyle(el);
             var rect = el.getBoundingClientRect();
-            var isVisible = style.display !== 'none' && style.visibility !== 'hidden' && rect.height > 50;
+            var isVisible = ${visibilityCheckSnippet({ includeOpacity: false })} && rect.height > 50;
             var isFixed = style.position === 'fixed' || style.position === 'sticky';
             var hasHighZ = parseInt(style.zIndex, 10) > 100;
             if (isVisible && (isFixed || hasHighZ)) {
