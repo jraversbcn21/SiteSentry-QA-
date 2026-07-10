@@ -20,7 +20,7 @@
 
 .settings-card {
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 24px;
   margin-bottom: 16px;
@@ -55,7 +55,7 @@
 .settings-field input, .settings-field select {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   font-size: 0.9rem;
   color: #0f172a;
@@ -65,13 +65,13 @@
 }
 
 .settings-field input:focus, .settings-field select:focus {
-  border-color: #2563eb;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .settings-save {
   padding: 10px 24px;
-  background: #2563eb;
+  background: var(--color-primary);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -81,12 +81,12 @@
   transition: background 0.2s;
 }
 
-.settings-save:hover { background: #1d4ed8; }
+.settings-save:hover { background: var(--color-primary-hover); }
 
 .settings-save:disabled { opacity: 0.5; cursor: default; }
 
 .settings-saved {
-  color: #16a34a;
+  color: var(--color-success);
   font-size: 0.82rem;
   margin-left: 12px;
   font-weight: 500;
@@ -97,11 +97,11 @@
   align-items: center;
   gap: 6px;
   margin-bottom: 20px;
-  color: #2563eb;
+  color: var(--color-primary);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
   transition: color 0.2s;
 }
 
-.settings-back:hover { color: #1d4ed8; }
+.settings-back:hover { color: var(--color-primary-hover); }

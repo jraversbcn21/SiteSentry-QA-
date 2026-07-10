@@ -48,7 +48,8 @@ export default function Home() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [currentScan, scanStatus, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScan?.id, navigate]);
 
   const loadRecentScans = async () => {
     try {

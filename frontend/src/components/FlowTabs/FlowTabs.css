@@ -1,7 +1,7 @@
 .flow-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--color-border);
   margin-bottom: 16px;
   overflow-x: auto;
 }
@@ -26,8 +26,8 @@
 .flow-tab:hover { color: #0f172a; }
 
 .flow-tab.active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
   font-weight: 600;
 }
 
@@ -41,8 +41,8 @@
   border-radius: 10px;
   font-size: 0.68rem;
   font-weight: 600;
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--color-border);
+  color: var(--color-text-secondary);
 }
 
 .flow-tab.active .flow-tab-badge {

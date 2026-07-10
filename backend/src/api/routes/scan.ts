@@ -67,10 +67,6 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
       .run(scanId, normalizedUrl, ScanStatus.PENDING, JSON.stringify(jobConfig), now);
 
     var queue = getScanQueue();
-    if (!queue) {
-      return res.status(503).json({ error: 'Servicio de cola no disponible. El scan no pudo ser encolado.' });
-    }
-
     await queue.add('process-scan', {
       scanId: scanId,
       url: normalizedUrl,
@@ -110,12 +106,10 @@ scanRoutes.get('/:id/status', async (req: Request, res: Response) => {
     var jobProgress = null;
     try {
       var statusQueue = getScanQueue();
-      if (statusQueue) {
-        var jobs = await statusQueue.getJobs(['active', 'waiting']);
-        var job = jobs.find(function(j: any) { return j.data?.scanId === id; });
-        if (job) {
-          jobProgress = job.progress;
-        }
+      var jobs = await statusQueue.getJobs(['active', 'waiting']);
+      var job = jobs.find(function(j: any) { return j.data?.scanId === id; });
+      if (job) {
+        jobProgress = job.progress;
       }
     } catch {
       // Ignorar errores de cola

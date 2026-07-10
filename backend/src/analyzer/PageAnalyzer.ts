@@ -185,6 +185,6 @@ export class PageAnalyzer {
   }
 
   async close(page: Page): Promise<void> {
-    await page.close().catch(() => {});
+    await page.context().close().catch(() => {});
   }
 }

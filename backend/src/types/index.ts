@@ -64,17 +64,19 @@ export interface FlowInfo {
   steps: FlowStep[];
 }
 
+export interface Summary {
+  total: number;
+  byType: Record<string, number>;
+  bySeverity: Record<string, number>;
+}
+
 export interface StepResult {
   index: number;
   action: string;
   label: string;
   issues: Issue[];
   fullPageScreenshot: string | null;
-  summary: {
-    total: number;
-    byType: Record<string, number>;
-    bySeverity: Record<string, number>;
-  };
+  summary: Summary;
 }
 
 export interface VisualDiff {
@@ -118,9 +120,5 @@ export interface ReportResponse {
   steps?: StepResult[];
   visualDiffs: VisualDiff[];
   baselineInfo: BaselineInfo | null;
-  summary: {
-    total: number;
-    byType: Record<string, number>;
-    bySeverity: Record<string, number>;
-  };
+  summary: Summary;
 }

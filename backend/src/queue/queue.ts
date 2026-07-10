@@ -71,7 +71,7 @@ class SimpleQueue extends EventEmitter {
 
 var scanQueue = new SimpleQueue();
 
-export function getScanQueue(): SimpleQueue | null {
+export function getScanQueue(): SimpleQueue {
   return scanQueue;
 }
 

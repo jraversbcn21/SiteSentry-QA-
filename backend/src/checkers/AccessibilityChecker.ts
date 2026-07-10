@@ -36,41 +36,37 @@ export class AccessibilityChecker implements IChecker {
   async check(url: string, page: Page, _networkEvents: NetworkEvent[]): Promise<Issue[]> {
     const issues: Issue[] = [];
 
-    try {
-      const results = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-        .analyze();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
 
-      for (const violation of results.violations.slice(0, 30)) {
-        const severity = impactToSeverity(violation.impact);
-        const label = WCAG_DESCRIPTIONS[violation.id] ?? violation.description;
+    for (const violation of results.violations.slice(0, 30)) {
+      const severity = impactToSeverity(violation.impact);
+      const label = WCAG_DESCRIPTIONS[violation.id] ?? violation.description;
 
-        const affectedCount = violation.nodes.length;
-        const exampleSelectors = violation.nodes
-          .slice(0, 3)
-          .map((n) => n.target?.join(' > ') ?? '')
-          .filter(Boolean);
+      const affectedCount = violation.nodes.length;
+      const exampleSelectors = violation.nodes
+        .slice(0, 3)
+        .map((n) => n.target?.join(' > ') ?? '')
+        .filter(Boolean);
 
-        const exampleHtml = violation.nodes[0]?.html?.substring(0, 150) ?? '';
+      const exampleHtml = violation.nodes[0]?.html?.substring(0, 150) ?? '';
 
-        issues.push({
-          type: IssueType.ACCESSIBILITY,
-          severity,
-          url,
-          description: `[${violation.id}] ${label} — ${affectedCount} elemento${affectedCount > 1 ? 's' : ''} afectado${affectedCount > 1 ? 's' : ''}`,
-          metadata: {
-            ruleId: violation.id,
-            impact: violation.impact,
-            wcagTags: violation.tags.filter((t) => t.startsWith('wcag')),
-            affectedCount,
-            exampleSelectors,
-            exampleHtml,
-            helpUrl: violation.helpUrl,
-          },
-        });
-      }
-    } catch (error) {
-      console.error('[AccessibilityChecker] Error ejecutando axe:', error);
+      issues.push({
+        type: IssueType.ACCESSIBILITY,
+        severity,
+        url,
+        description: `[${violation.id}] ${label} — ${affectedCount} elemento${affectedCount > 1 ? 's' : ''} afectado${affectedCount > 1 ? 's' : ''}`,
+        metadata: {
+          ruleId: violation.id,
+          impact: violation.impact,
+          wcagTags: violation.tags.filter((t) => t.startsWith('wcag')),
+          affectedCount,
+          exampleSelectors,
+          exampleHtml,
+          helpUrl: violation.helpUrl,
+        },
+      });
     }
 
     return issues;

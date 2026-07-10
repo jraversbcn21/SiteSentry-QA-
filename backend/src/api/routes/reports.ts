@@ -9,7 +9,8 @@ export const reportsRoutes = Router();
 reportsRoutes.get('/', async (req: Request, res: Response) => {
   try {
     const limit = Math.min(parseInt((req.query.limit as string) || '20', 10), 100);
-    const offset = parseInt((req.query.offset as string) || '0', 10);
+    var parsedOffset = parseInt((req.query.offset as string) || '0', 10);
+    const offset = Number.isNaN(parsedOffset) ? 0 : parsedOffset;
     const db = getDb();
 
     const scans = db.prepare(
