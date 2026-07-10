@@ -1,75 +1,112 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding assistants when working with code in this repository.
 
-## What This Is
+## Project Overview
 
 SiteSentry QA is a single-page functional web analyzer. Given one URL, it opens that page in a headless browser, intercepts network traffic, scrolls through the page, and runs 9 checkers to detect functional and quality problems. It does NOT crawl or follow links.
 
-Supports interactive multi-step flows (login, search, add to cart) via JSON step definitions or Playwright codegen script import. Includes visual regression detection comparing screenshots between scans of the same URL using pixelmatch. Includes Groq LLM integration for AI-powered issue explanations. All user-facing text is in Spanish.
+Supports interactive multi-step flows (login, search, add to cart) via JSON step definitions or Playwright codegen script import. Includes visual regression detection comparing screenshots between scans of the same URL using pixelmatch. Includes Groq LLM integration for AI-powered issue explanations.
 
-## ⚠️ Pending Work — Read Before Starting a New Session
+## Audit Status (2026-07-04 architecture audit)
 
-There is a full architecture/code audit at **[`docs/architecture-audit-2026-07-04.md`](docs/architecture-audit-2026-07-04.md)** with a phased execution plan (34 findings, 38 ordered tasks T01–T38) that has **not been executed yet**. It is the single source of truth for the next refactoring session — read it before proposing architectural changes to this codebase, and check whether the task the user is asking for is already scoped there (with dependencies, priority, and complexity already worked out) instead of re-deriving the plan from scratch. Execute it phase by phase (Phase 1 → Phase 8), not all at once, and re-verify each finding against current code before acting on it since the codebase may have changed since the audit date.
+The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 findings and 38 ordered tasks (T01-T38). **34 of 38 tasks have been executed** across 5 phases:
+
+| Phase | Tasks | Status |
+|-------|-------|--------|
+| Phase 1 — Architecture Foundation | T01-T10, T35 | Done |
+| Phase 2 — Security Hardening | T09-T10 | Done |
+| Phase 3 — Backend Pipeline Cleanup | T11-T14 | Done |
+| Phase 4 — Checker Consistency | T15-T18 | Done |
+| Phase 5 — Frontend Architecture | T19-T23 | Done |
+| Phase 6 — Shared Types | T24-T25 | Done |
+| Phase 7 — Testing | T02-T03 | Done |
+| Phase 8 — Production Hardening | T26-T34, T36-T38 | Mostly done |
+
+**Remaining (1 task):**
+- **T33 (H9) — PageFacts DOM pre-pass**: Consolidate 16 redundant `page.evaluate()` round-trips across checkers into a shared single-pass DOM snapshot. High-risk (changes data collection, not just code organization). Should only be attempted with full checker test coverage in place (now available: 13 tests). See `docs/architecture-audit-2026-07-04.md` §H9 for full scope and `checkers/domHelpers.ts` for existing visibility-check helpers that can be extended.
 
 ## Commands
 
-### Backend (from `backend/`)
-- `npm run dev` — Start API server with tsx watch (hot reload, port 3001) — single-process mode: API + worker run in the same Node process
-- `npm run build` — TypeScript compile (`tsc`)
-- `npx tsc --noEmit` — Type-check without emitting
-- `npm test` — Run Jest test suite
+### Backend (`backend/`)
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start API server with tsx watch (port 3001) — single-process mode: API + worker run in the same Node process |
+| `npm run build` | TypeScript compile (`tsc`) |
+| `npx tsc --noEmit` | Type-check without emitting |
+| `npm test` | Run Jest test suite (37 tests, 5 suites) |
 
-### Frontend (from `frontend/`)
-- `npm run dev` — Start Vite dev server (port 5173)
-- `npm run build` — Type-check + Vite production build
-- `npm run lint` — ESLint
+### Frontend (`frontend/`)
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server (port 5173) |
+| `npm run build` | Type-check + Vite production build |
+| `npm run lint` | ESLint |
 
-### Running the app requires 2 terminals
+### Running the app (2 terminals)
 1. `cd backend && npm run dev` (API + Worker on port 3001)
 2. `cd frontend && npm run dev` (Vite on port 5173)
 
 ## Architecture
 
-### Full Pipeline
-`POST /api/scan` → SQLite creates Scan row → In-process queue adds job → Worker picks up job → Playwright opens page → [Flow mode: execute steps (click, type, navigate...)] → PageAnalyzer intercepts network + scrolls → 9 Checkers run (per step in flow mode) → Issues + screenshots saved (per step in flow mode) → Visual regression diff vs baseline (pixelmatch) → Frontend polls `/api/scan/:id/status` until COMPLETED → Fetches `/api/reports/:id`
+```
+POST /api/scan  [auth + rate-limit + SSRF pre-check]
+  → SQLite creates Scan row
+  → In-process queue adds job (EventEmitter, same process)
+  → Worker picks up job (async, same event loop)
+  → SSRF validation (DNS-resolve + private IP denylist)
+  → Playwright opens page
+  → [Flow mode: FlowEngine executes steps (click, type, navigate...)]
+  → CheckerRunner runs 9 Checkers (per step in flow mode)
+  → ScreenshotService captures screenshots (per step in flow mode)
+  → Issues persisted to SQLite (transaction)
+  → VisualRegressionService runs pixelmatch diff
+  → Frontend polls /api/scan/:id/status (progress visible via activeJob tracking)
+  → Fetches /api/reports/:id
+```
 
-### Runtime Environment
-**No external services required for development.** The app runs entirely self-contained with SQLite (file-based) and an in-process EventEmitter-based job queue. This replaces the previous BullMQ + Redis + Prisma + PostgreSQL stack.
+### Backend Files
 
-### Backend Key Files
-- **`src/analyzer/PageAnalyzer.ts`** — Core engine. Creates a BrowserContext with a realistic fingerprint (userAgent, locale, Sec-CH-UA headers), intercepts all network requests/responses/failures, captures console errors, performs full-page scroll. Returns `PageAnalysis` with `page`, `NetworkEvent[]`, `ConsoleEvent[]`, `loadTime`, `scrollHeight`.
-- **`src/checkers/`** — 9 checkers, each implements `IChecker.check(url, page, networkEvents, consoleErrors?)`. See checkers section below.
-- **`src/workers/ScanWorker.ts`** — Orchestrates the full pipeline: launch browser → analyze → [flow steps] → run checkers (per step in flow mode) → capture screenshots (per step in flow mode) → run visual regression (pixelmatch) → save issues. Anti-bot blocks saved as `FAILED_API/HIGH` issue instead of failing.
-- **`src/workers/index.ts`** — Worker process: listens to in-process queue, executes scan jobs via `processScanJob`. Runs in the same Node process as the API server (single-process mode). Also recovers orphaned PENDING/RUNNING scans on startup.
-- **`src/api/routes/scan.ts`** — POST scan (accepts `flow`, `flowId`, `visualDiffThreshold`), GET status with per-step progress. Uses `better-sqlite3` directly — no Prisma.
-- **`src/api/routes/reports.ts`** — GET report (includes `fullPageScreenshot`, `screenshot_path` per issue, `visualDiffs[]`, `baselineInfo`, `flow`, per-step `steps[]` with summaries and screenshots), GET all reports list.
-- **`src/api/routes/flows.ts`** — CRUD for reusable interactive flows: `GET /api/flows`, `GET /api/flows/:id`, `POST /api/flows`, `PUT /api/flows/:id`, `DELETE /api/flows/:id`.
-- **`src/api/server.ts`** — Express app. Routes: `/api/scan`, `/api/reports`, `/api/flows`, `/screenshots/:scanId/:filename` (serves PNG files with path traversal protection and UUID validation), `/api/scans/:id/set-baseline` (marks/unmarks manual baseline).
-- **`src/types/index.ts`** — Shared enums (`IssueType`, `IssueSeverity`, `ScanStatus`), interfaces (`Issue`, `IChecker`, `VisualDiff`, `BaselineInfo`, `FlowStep`, `FlowInfo`, `StepResult`, `ReportResponse`, `ScanConfig`).
-- **`src/database/db.ts`** — SQLite schema via `better-sqlite3`. Tables: `scans`, `issues`, `visual_diffs`, `flows`. Migrations via inline `ALTER TABLE`/`CREATE TABLE` with try/catch for idempotency.
-- **`src/queue/queue.ts`** — In-process job queue using `EventEmitter`. No Redis, no BullMQ. Async processing with `emitAsync`.
+| File | Purpose |
+|------|---------|
+| `src/analyzer/PageAnalyzer.ts` | Core engine: browser context, network interception, console capture, full-page scroll. `close()` closes the BrowserContext. |
+| `src/checkers/` | 9 checkers implementing `IChecker.check(url, page, networkEvents, consoleErrors?)` |
+| `src/checkers/severity.ts` | Shared severity-policy module: `mapBy`, `patternSeverity`, `thresholdLadder`, `fixedSeverity` |
+| `src/checkers/domHelpers.ts` | Shared DOM-scan snippet builders for `page.evaluate()`: `visibilityCheckSnippet`, `imgSrcSelector`, `dedupByKey` |
+| `src/services/CheckerRunner.ts` | Runs all 9 checkers and collects issues (used by both normal and flow modes) |
+| `src/services/FlowEngine.ts` | Executes interactive flow steps: navigate, click, type, wait, select, hover, press, checkpoint |
+| `src/services/ScreenshotService.ts` | Full-page + per-element screenshot capture, directory creation, last-step copy |
+| `src/services/VisualRegressionService.ts` | Baseline lookup, pixelmatch diff, visual_diffs persistence |
+| `src/workers/ScanWorker.ts` | Thin orchestrator (220 lines): browser → analyze → [flow] → checkers → screenshots → persist → visual regression |
+| `src/workers/index.ts` | Registers queue processor, recovers orphaned PENDING/RUNNING scans on startup |
+| `src/api/routes/scan.ts` | POST scan (zod-validated, SSRF pre-check), GET status with progress. Uses shared `schemas.ts`. |
+| `src/api/routes/reports.ts` | GET report with issues + screenshots + visual diffs + per-step results, GET reports list. NaN-safe pagination. |
+| `src/api/routes/flows.ts` | CRUD for reusable interactive flows (5 endpoints). Uses shared zod validation from `schemas.ts`. |
+| `src/api/schemas.ts` | Shared zod schemas: `FlowStepSchema`, `ScanRequestSchema`. Used by both `scan.ts` and `flows.ts`. |
+| `src/api/middleware/auth.ts` | API-key authentication middleware. Requires `x-api-key` header if `API_KEY` env var is set. Transparent in dev (no key required). |
+| `src/api/server.ts` | Express app: CORS, helmet, auth middleware, rate limiting, routes, screenshot serving, graceful shutdown (SIGTERM/SIGINT with queue drain + 30s timeout). |
+| `src/security/ssrf.ts` | SSRF protection: DNS-resolve hostname, validate against private/reserved IP ranges (RFC1918, loopback, link-local). |
+| `src/logger.ts` | Structured logger with ISO timestamps and levels (debug/info/warn/error). Configurable via `LOG_LEVEL` env var. |
+| `src/types/index.ts` | Shared `Summary` type, `Issue` with optional `id`/`stepIndex`, enums (`IssueType`, `IssueSeverity`, `ScanStatus`), interfaces |
+| `src/database/db.ts` | SQLite via `better-sqlite3` with versioned migration tracking (`schema_migrations` table, 7 migrations) |
+| `src/queue/queue.ts` | In-process queue (EventEmitter-based). Tracks `activeJob` for progress visibility. `shutdown()` drains active job. |
 
-### Dependencies (backend)
-- **Runtime:** `express`, `cors`, `helmet`, `playwright`, `better-sqlite3`, `zod`, `pixelmatch`, `pngjs`, `sharp`, `@axe-core/playwright`
-- **Dev:** `typescript`, `tsx`, `@types/express`, `@types/cors`, `@types/node`, `@types/better-sqlite3`, `@types/jest`, `@types/pngjs`
+### Checkers
+| # | Checker | IssueType | Detects |
+|---|---------|-----------|---------|
+| 1 | BrokenResourcesChecker | `BROKEN_RESOURCE` | Broken images/CSS/scripts/fonts (network + DOM) |
+| 2 | FailedAPIChecker | `FAILED_API` | Failed XHR/fetch, slow APIs (>10s), CORS |
+| 3 | InteractivityChecker | `INTERACTIVITY` | Links without href, `#` placeholders, disabled buttons |
+| 4 | ContentChecker | `EMPTY_CONTENT` | Empty containers, visible error messages |
+| 5 | LazyLoadChecker | `LAZY_LOAD` | Lazy images not loaded, stuck spinners |
+| 6 | FormModalChecker | `FORM_MODAL` | Forms without submit/action, modals without close, cookie banners |
+| 7 | ConsoleErrorChecker | `CONSOLE_ERROR` | JS errors, CORS errors |
+| 8 | PerformanceChecker | `PERFORMANCE` | TTFB, DOMContentLoaded, full load, DOM node count, resource count |
+| 9 | AccessibilityChecker | `ACCESSIBILITY` | WCAG 2.0A/AA/2.1A/AA violations via `@axe-core/playwright` |
 
-### Checkers (9)
-| Checker | IssueType | Detecta |
-|---|---|---|
-| BrokenResourcesChecker | `BROKEN_RESOURCE` | Imagenes/CSS/scripts/fonts rotos (network + DOM) |
-| FailedAPIChecker | `FAILED_API` | XHR/fetch con error, APIs lentas >10s, CORS |
-| InteractivityChecker | `INTERACTIVITY` | Links sin href, placeholders `#`, botones sin `disabled` |
-| ContentChecker | `EMPTY_CONTENT` | Contenedores vacios, mensajes de error visibles |
-| LazyLoadChecker | `LAZY_LOAD` | Imagenes lazy no cargadas, spinners atascados |
-| FormModalChecker | `FORM_MODAL` | Forms sin submit/action, modales sin cierre, banners cookie |
-| ConsoleErrorChecker | `CONSOLE_ERROR` | JS errors, CORS errors (usa 4o param `consoleErrors`) |
-| PerformanceChecker | `PERFORMANCE` | TTFB, DOMContentLoaded, full load, DOM nodes, resource count |
-| AccessibilityChecker | `ACCESSIBILITY` | Violaciones WCAG 2.0A/AA/2.1A/AA via `@axe-core/playwright` |
+Additional `IssueType.FLOW_ERROR` is generated by FlowEngine when a flow step fails. Unrecognized step actions also produce FLOW_ERROR.
 
-Additional `IssueType.FLOW_ERROR` (severity HIGH) is generated by ScanWorker (not a checker) when a flow step fails to execute.
-
-### Issue Types Reference
+### Issue Types
 | Type | Severity | Source | Description |
 |------|----------|--------|-------------|
 | `BROKEN_RESOURCE` | HIGH/MEDIUM | BrokenResourcesChecker | Broken images, CSS, scripts, fonts |
@@ -81,30 +118,90 @@ Additional `IssueType.FLOW_ERROR` (severity HIGH) is generated by ScanWorker (no
 | `CONSOLE_ERROR` | HIGH/MEDIUM | ConsoleErrorChecker | JS errors, console errors |
 | `PERFORMANCE` | HIGH/MEDIUM/LOW | PerformanceChecker | Page performance metrics |
 | `ACCESSIBILITY` | HIGH/MEDIUM/LOW | AccessibilityChecker | WCAG violations |
-| `FLOW_ERROR` | HIGH | ScanWorker | Flow step execution failure |
+| `FLOW_ERROR` | HIGH | FlowEngine | Flow step execution failure |
 
-### Frontend Key Files
-- **`src/pages/Home.tsx`** — URL input + flow selector dropdown + "Nuevo flujo" button + FlowEditor modal + scan progress polling. Settings icon (⚙️) in header linking to `/settings`.
-- **`src/pages/Report.tsx`** — Fetches and displays report.
-- **`src/components/ReportViewer/ReportViewer.tsx`** — Score, FlowTabs (per-step views when flow exists), filters, grouping by type, JSON/CSV export, full-page screenshot, visual regression section (VisualDiffViewer + baseline toggle). Contains `getTypeLabel()` and `getTypeIcon()`.
-- **`src/components/ErrorGroup/ErrorGroup.tsx`** — Group header per IssueType. Contains `typeConfig` with label, icon and color per type. Accepts `visualDiffsMap` to pass element diffs to ErrorCard. **Must be updated when adding new IssueType.**
-- **`src/components/ErrorCard/ErrorCard.tsx`** — Individual issue card with formatted metadata, element screenshot (ScreenshotThumb), element visual diff (VisualDiffViewer compact), copy-to-clipboard and AI explain buttons. Contains `typeConfig`. **Must be updated when adding new IssueType.**
-- **`src/components/ScreenshotThumb/ScreenshotThumb.tsx`** — Lazy-loaded thumbnail with loading/error states. Click opens Lightbox.
-- **`src/components/Lightbox/Lightbox.tsx`** — Full-screen image modal with ESC/click-to-close, body scroll lock.
-- **`src/components/VisualDiffViewer/VisualDiffViewer.tsx`** — Side-by-side slider comparing baseline vs current screenshot, diff.png overlay, percentage badge (red if over threshold, green if under). Supports compact mode for element diffs.
-- **`src/components/FlowEditor/FlowEditor.tsx`** — Flow editor with textarea for Playwright codegen paste, "Convertir" button (calls `parseCodegenScript`), editable step list with per-action fields, add/delete steps, save via API. Opens as modal from Home.tsx.
-- **`src/components/FlowTabs/FlowTabs.tsx`** — Horizontal tab bar for per-step navigation in reports. Each tab shows icon + label + issue count badge. Includes "Resumen" tab for combined view.
-- **`src/components/Settings/Settings.tsx`** — Groq LLM configuration (API key + model selection from 5 available models). Accessible via ⚙️ icon in header at `/settings`.
-- **`src/services/api.ts`** — Axios client hitting backend on port 3001. Methods: `startScan`, `getScanStatus`, `getReport`, `getReports`, `setBaseline`, `getFlows`, `getFlow`, `createFlow`, `updateFlow`, `deleteFlow`.
-- **`src/services/ai.ts`** — Groq LLM integration for explaining issues. Reads API key and model from localStorage.
-- **`src/services/codegenConverter.ts`** — Parses Playwright codegen scripts to `FlowStep[]` via regex. Supports goto, click, fill, waitForTimeout, selectOption, hover, press.
-- **`src/types/index.ts`** — Frontend mirrors of backend enums/interfaces. Includes `VisualDiff`, `BaselineInfo`, `FlowStep`, `FlowInfo`, `FlowDefinition`, `StepResult`. `Issue` includes `id?`, `screenshot_path?`, `stepIndex?`. `ReportResponse` includes `fullPageScreenshot?`, `visualDiffs[]`, `baselineInfo`, `flow?`, `steps?`.
+### Frontend Files
+| File | Purpose |
+|------|---------|
+| `src/pages/Home.tsx` | URL input + flow selector + scan progress polling (stabilized deps). Uses shared `getStatusLabel`. |
+| `src/pages/Report.tsx` | Fetches and displays report with race-condition guard (ignore flag). Uses `unwrapApiError`. |
+| `src/config/issueTypeConfig.ts` | Single source of truth for IssueType labels/icons/colors, severity labels, and ScanStatus labels. Imported by all components. |
+| `src/components/ReportViewer/ReportViewer.tsx` | Score, FlowTabs, filters, grouping, JSON/CSV export, full-page screenshot, visual regression, baseline toggle (no page reload) |
+| `src/components/ErrorGroup/ErrorGroup.tsx` | Group header per IssueType. Uses shared `typeConfig`. |
+| `src/components/ErrorCard/ErrorCard.tsx` | Issue card with metadata, element screenshot, element diff, copy + AI explain. Uses shared `typeConfig` and `severityConfig`. |
+| `src/components/ScreenshotThumb/ScreenshotThumb.tsx` | Lazy-loaded thumbnail → opens Lightbox. Uses `getScreenshotUrl`. |
+| `src/components/Lightbox/Lightbox.tsx` | Full-screen image modal |
+| `src/components/VisualDiffViewer/VisualDiffViewer.tsx` | Side-by-side slider + diff.png + percentage badge. Uses `getScreenshotUrl`. |
+| `src/components/FlowEditor/FlowEditor.tsx` | Flow editor with codegen import, `<StepField>` sub-component, manual step editing |
+| `src/components/FlowTabs/FlowTabs.tsx` | Per-step tab navigation in reports |
+| `src/components/Settings/Settings.tsx` | Groq LLM config (API key and model: 5 models available) |
+| `src/components/ErrorBoundary.tsx` | Error boundary wrapped at App.tsx root (catches render errors in all pages) |
+| `src/services/api.ts` | Axios client, `unwrapApiError()` helper, `getScreenshotUrl()` helper |
+| `src/services/ai.ts` | Groq LLM integration for AI-powered issue explanations |
+| `src/services/codegenConverter.ts` | Parses Playwright codegen scripts to FlowStep JSON |
+| `src/types/index.ts` | Frontend type mirrors |
+
+## Security
+
+| Feature | Mechanism | Config |
+|---------|-----------|--------|
+| Authentication | `x-api-key` header middleware on all `/api/*` routes | `API_KEY` env var (optional; dev mode if unset) |
+| SSRF protection | DNS-resolve + private IP denylist (RFC1918, loopback, link-local) | Two layers: pre-check in `scan.ts` + validation in `ScanWorker.ts` |
+| Rate limiting | `express-rate-limit` on `POST /api/scan` | 10 req/min, configurable |
+| CSP | Content-Security-Policy meta tag in `index.html` | `default-src 'self'`, allows Groq API, Google Fonts |
+| Path traversal | UUID v4 regex + `..`/`/`/`\` rejection | Screenshot serving routes |
+
+## Phase 1 — Screenshots (Complete)
+
+After checkers run, ScreenshotService captures:
+- **Full-page**: `data/screenshots/{scanId}/full.png`
+- **Per-element**: `data/screenshots/{scanId}/{issueId}.png` (HIGH severity issues with CSS `selector` in metadata)
+- **Per-step**: `data/screenshots/{scanId}/step-{N}-full.png` and `step-{N}-{issueId}.png` (flow mode)
+
+Served via `GET /screenshots/:scanId/:filename` with UUID validation and path traversal protection. Frontend displays them via `ScreenshotThumb` + `Lightbox` in ErrorCard dropdowns and ReportViewer header.
+
+Key types: `Issue.screenshot_path?: string`, `ReportResponse.fullPageScreenshot?: string | null`.
+
+## Phase 2 — Visual Regression (Complete)
+
+After screenshots and issue persistence, VisualRegressionService runs pixelmatch comparison:
+- **Baseline lookup**: manual (`is_baseline=1`) first, then automatic (last completed scan of same URL)
+- **Full-page diff**: resizes to smallest common dimensions via `sharp`, runs `pixelmatch`, saves `diff-full.png`
+- **Element diffs**: matches by CSS selector (exact string), falls back to same IssueType + same URL
+- **Threshold**: `VISUAL_DIFF_THRESHOLD` env var (default 0.05), overridable per scan via `visualDiffThreshold` param
+- **Best-effort**: diff failures never fail the scan
+- **Baseline management**: `POST /api/scans/:id/set-baseline` marks/unmarks manual baseline
+- **Frontend**: `VisualDiffViewer` with side-by-side slider, diff.png, percentage badge. Baseline toggle without page reload.
+
+Dependencies: `pixelmatch`, `pngjs`, `sharp`.
+
+## Phase 3 — Interactive Flows (Complete)
+
+Users define multi-step flows (login, search, add to cart) in JSON format or by importing Playwright codegen scripts.
+
+**Flow definition format:**
+```json
+[
+  { "action": "navigate", "url": "https://example.com/login" },
+  { "action": "type", "selector": "#username", "value": "admin" },
+  { "action": "click", "selector": "button[type=submit]" }
+]
+```
+
+**Supported actions:** `navigate`, `click`, `type`, `wait`, `select`, `hover`, `press`, `checkpoint`.
+
+**Execution:** FlowEngine loops over steps. At checkpoints, navigations, and the last step, it runs all 9 checkers and captures per-step screenshots. Issues get `step_index`. The last step's screenshot is copied as `full.png` for visual regression compatibility. Unrecognized step actions generate FLOW_ERROR issues instead of silently no-oping.
+
+**Flow storage:** `flows` table with CRUD via `/api/flows`. Scans accept `flow` (inline) or `flowId` (saved reference). Both validated with shared zod schemas from `schemas.ts`.
+
+**Codegen converter:** `frontend/src/services/codegenConverter.ts` parses Playwright codegen scripts to JSON steps via regex.
+
+**Frontend:** `FlowEditor` component for creating/editing flows (with `<StepField>` sub-component). `FlowTabs` component for per-step report navigation. `ReportViewer` filters issues by step.
 
 ## Groq LLM Integration
 
-The Settings page (`/settings`, accessible via ⚙️ icon in the header) allows configuring the API key and model for AI-powered issue explanations.
+The Settings page (`/settings`, accessible via gear icon in header) allows configuring:
 
-Available models:
 | Model ID | Description |
 |----------|-------------|
 | `llama-3.1-8b-instant` | Llama 3.1 8B (fast) |
@@ -113,154 +210,82 @@ Available models:
 | `openai/gpt-oss-120b` | GPT OSS 120B |
 | `qwen/qwen3.6-27b` | Qwen 3.6 27B |
 
-API key and selected model are stored in `localStorage` (keys: `sitesentry_groq_api_key`, `sitesentry_groq_model`). `services/ai.ts` reads these values for each AI explanation request, sends to Groq API with a Spanish system prompt, and returns the response.
+API key stored in localStorage. `services/ai.ts` reads key and model from localStorage for each AI explanation request. CSP allows `connect-src` to `https://api.groq.com`.
 
-## Screenshots (Phase 1 — Complete)
+## Runtime Environment
 
-After checkers run and before closing the page, ScanWorker captures:
-- **Full-page screenshot** → `data/screenshots/{scanId}/full.png`
-- **Element screenshots** → `data/screenshots/{scanId}/{issueId}.png` for HIGH severity issues with a CSS `selector` in metadata
-- **Per-step screenshots** (flow mode) → `data/screenshots/{scanId}/step-{N}-full.png` and `data/screenshots/{scanId}/step-{N}-{issueId}.png`
+**No external services required for development.** The app runs entirely self-contained:
+- SQLite database (file-based, no server)
+- In-process job queue (EventEmitter-based, no Redis)
+- Single-process mode: API + worker run in the same Node.js process
+- Graceful shutdown: SIGTERM/SIGINT drains active job + closes DB (30s timeout)
+- Structured logging via `logger.ts` with configurable levels (`LOG_LEVEL` env var)
 
-Screenshots served via `GET /screenshots/:scanId/:filename` (with UUID validation and path traversal protection). Frontend displays them via `ScreenshotThumb` + `Lightbox` components in ErrorCard dropdowns and ReportViewer header.
+## Key Constraints
 
-Key types: `Issue.screenshot_path?: string`, `ReportResponse.fullPageScreenshot?: string | null`.
-
-## Visual Regression (Phase 2 — Complete)
-
-After screenshots and issue persistence, ScanWorker runs `runVisualRegression()`:
-- **Baseline lookup**: manual (`is_baseline=1`) takes priority, then automatic (last completed scan of same URL). Skip if no baseline exists.
-- **Full-page diff**: loads `full.png` from both scans, resizes to smallest common dimensions via `sharp`, runs `pixelmatch`, saves `diff-full.png`, stores metrics in `visual_diffs` table.
-- **Element diffs**: for each HIGH issue with screenshot, matches by CSS selector (exact string), falls back to same IssueType + same URL. Diffs per-element screenshots, saves `diff-{issueId}.png`.
-- **Threshold**: `VISUAL_DIFF_THRESHOLD` env var (default 0.05), overridable per scan via `visualDiffThreshold` param in POST body.
-- **Best-effort**: diff failures never fail the scan. Each diff operation wrapped in try/catch.
-- **Baseline management**: `POST /api/scans/:id/set-baseline` marks/unmarks a scan as manual baseline. `is_baseline` column on `scans` table. Only one manual baseline per URL.
-
-**Frontend**: `VisualDiffViewer` component with interactive side-by-side slider (range input overlaid on CSS-clipped images), diff.png with highlighted pixels, percentage badge (red if > threshold, green if ≤ threshold). Full-page diffs shown in ReportViewer visual regression section; element diffs shown in ErrorCard details (compact mode, diff.png + badge only).
-
-**DB**: `visual_diffs` table with `diff_type` (full_page/element), `diff_percentage`, `diff_image_path`, `baseline_issue_id`, `element_identifier`.
-
-**Dependencies**: `pixelmatch`, `pngjs`, `sharp`.
-
-## Interactive Flows (Phase 3 — Complete)
-
-Users can define multi-step flows to test interactive workflows (login, search, add to cart).
-
-### Flow Definition Format
-```json
-[
-  { "action": "navigate", "url": "https://example.com/login" },
-  { "action": "type", "selector": "#username", "value": "admin" },
-  { "action": "type", "selector": "#password", "value": "pass123" },
-  { "action": "click", "selector": "button[type=submit]" },
-  { "action": "wait", "ms": 2000 },
-  { "action": "checkpoint" }
-]
-```
-
-**Supported actions:** `navigate` (url), `click` (selector), `type` (selector, value), `wait` (ms), `select` (selector, value), `hover` (selector), `press` (key, optional selector), `checkpoint` (triggers checkers + screenshot at this point).
-
-### Flow Storage and API
-- **`flows` table**: id, name, steps (JSON), created_at, updated_at
-- **CRUD**: `GET /api/flows`, `GET /api/flows/:id`, `POST /api/flows`, `PUT /api/flows/:id`, `DELETE /api/flows/:id`
-- **Scan integration**: `POST /api/scan` accepts `flow` (inline steps) or `flowId` (saved reference). Inline takes priority. Worker receives resolved `config.flow = { name, steps }`.
-- **GET /api/reports/:id**: returns `flow` (step definitions) and `steps[]` (per-step results with issues, summaries, screenshots).
-
-### Flow Execution (ScanWorker)
-1. For each step: execute action (click/type/navigate/wait/select/hover/press). On failure: register `FLOW_ERROR` and continue (or abort on navigate failure).
-2. At checkpoints + navigations + last step: run fullPage scroll, run all 9 checkers, capture per-step screenshots (`step-{N}-full.png`, `step-{N}-{issueId}.png`). Issues get `step_index`.
-3. Network/console events: reset on navigate steps, accumulate on non-navigate steps. Listeners attached once (not per navigate) to avoid quadratic duplication.
-4. After flow: assign UUIDs to all issues, copy last step's `full.png` for visual regression compatibility.
-5. **`step_index` column** on `issues` table: NULL for normal scans, 0/1/2... for flow steps.
-
-### Codegen Import
-`frontend/src/services/codegenConverter.ts` parses Playwright codegen scripts via regex:
-- `page.goto('url')` → navigate
-- `page.click('selector')` → click
-- `page.fill('selector', 'value')` → type
-- `page.waitForTimeout(ms)` → wait
-- `page.selectOption('selector', 'value')` → select
-- `page.hover('selector')` → hover
-- `page.press('selector', 'key')` → press
-- Auto-adds final `checkpoint` step.
-
-### Frontend Flow UI
-- **FlowEditor**: textarea for codegen paste + "Convertir" button, editable step list with action selector and per-action fields, add/delete steps, save flow via API. Opens as modal from Home page.
-- **Home.tsx**: flow selector dropdown (saved flows), "Nuevo flujo" button (opens FlowEditor), passes `flow`/`flowId` in `startScan()`.
-- **FlowTabs**: horizontal tab bar rendered at top of ReportViewer when `report.flow` exists. One tab per step + "Resumen" tab. Click filters issues by `stepIndex`.
-- **ReportViewer**: per-step screenshot display, per-step filtering, visual regression section in Resumen tab.
-
-## Critical: page.evaluate and tsx/esbuild
-
+### page.evaluate and tsx/esbuild
 All `page.evaluate()` calls **must** use template string format:
 ```typescript
 await page.evaluate(`(() => { ... })()`)
 ```
 Never use arrow function callbacks. The tsx runner (esbuild) injects a `__name` helper that causes `ReferenceError: __name is not defined` in the browser context. Use `var`, `function`, and `for` loops inside evaluate strings — no `const`/`let`/arrow functions.
 
-**This constraint applies ONLY to `page.evaluate()` strings**, not to regular TypeScript/Node.js code or frontend React code.
+This constraint applies ONLY to `page.evaluate()` strings, not to regular TypeScript/Node.js code.
 
-## Database
+**For shared evaluate-string builders**, use `checkers/domHelpers.ts` functions like `visibilityCheckSnippet()` which return JavaScript snippet strings compatible with this constraint. Import them and interpolate into template literals:
+```typescript
+await page.evaluate(`(() => {
+  var isVisible = ${visibilityCheckSnippet()} && rect.height > 0;
+})()`);
+```
 
-SQLite via `better-sqlite3`. The database file is at `backend/data/sitesentry.db` (configurable via `DB_PATH` env var). Schema is auto-created in `db.ts` with `CREATE TABLE IF NOT EXISTS`. Migrations are run inline as `ALTER TABLE`/`CREATE TABLE` statements with try/catch for idempotency.
+### UUID Generation
+Use `import { randomUUID } from 'crypto'`, NOT `crypto.randomUUID()`.
+
+### Database
+SQLite via `better-sqlite3`. File at `backend/data/sitesentry.db` (configurable via `DB_PATH` env var). Versioned migration system with `schema_migrations` table tracking 7 ordered migrations. Each migration has a version number, name, and SQL. New migrations are appended to the array in `db.ts`.
 
 Tables:
-- **`scans`** — id, url, status, config, is_baseline, created_at, completed_at
-- **`issues`** — id, scan_id, type, severity, url, source_url, description, metadata, screenshot_path, step_index, created_at
-- **`visual_diffs`** — id, scan_id, baseline_scan_id, diff_type, issue_id, baseline_issue_id, element_identifier, diff_percentage, diff_image_path, threshold_used, created_at
-- **`flows`** — id, name, steps, created_at, updated_at
+- `scans`: id, url, status, config, is_baseline, created_at, completed_at
+- `issues`: id, scan_id, type, severity, url, source_url, description, metadata, screenshot_path, step_index, created_at
+- `visual_diffs`: id, scan_id, baseline_scan_id, diff_type, issue_id, baseline_issue_id, element_identifier, diff_percentage, diff_image_path, threshold_used, created_at
+- `flows`: id, name, steps, created_at, updated_at
+- `schema_migrations`: version (PK), name, applied_at
 
-## Queue
+### Import Style
+- Backend: CommonJS (`"module": "commonjs"`), `tsx` runner
+- Frontend: ESM (`"type": "module"`), Vite, `@/` alias → `src/`
 
-In-process job queue via `EventEmitter` (`src/queue/queue.ts`). Jobs are processed synchronously in the worker process. No external queue service required (no Redis, no BullMQ). The queue class (`SimpleQueue`) exposes:
-- `add(name, data)` — enqueue a job and return a Job object
-- `getJobs(types)` — list pending jobs
-- `on('process', callback)` — register the job processor
-
-The worker (`src/workers/index.ts`) registers the processor via `scanQueue.on('process', ...)` calling `processScanJob`.
-
-## Adding a New Checker
-
-1. Add new value to `IssueType` enum in:
-   - `backend/src/types/index.ts`
-   - `frontend/src/types/index.ts`
-2. Create `backend/src/checkers/MyChecker.ts` implementing `IChecker`
-3. Export and register in `backend/src/checkers/index.ts`
-4. Add label + icon to `getTypeIcon()`/`getTypeLabel()` in `ReportViewer.tsx`
-5. Add entry to `typeConfig` in `ErrorGroup.tsx` (label, icon, color)
-6. Add entry to `typeConfig` in `ErrorCard.tsx` (label, icon)
-
-## Anti-Bot Handling
-
-Browser launches with `--disable-http2` (force HTTP/1.1). PageAnalyzer uses a realistic Chrome fingerprint: userAgent, locale `es-ES`, timezone `Europe/Madrid`, `Sec-CH-UA`/`Accept-Language` headers. If blocked, ScanWorker saves a `FAILED_API/HIGH` issue with `metadata.errorType: 'ANTI_BOT_BLOCK'` and marks scan COMPLETED.
-
-## Report Export
-
-ReportViewer has JSON and CSV download buttons. JSON exports full report with Spanish labels. CSV includes BOM for Excel compatibility with dynamic metadata columns. Files named `reporte_qa_{hostname}_{date}.{ext}`.
-
-## UI Language
-
-All user-facing text is in **Spanish**. Issue descriptions, checker output, frontend copy, flow step labels, and diff labels are all in Spanish.
+### UI Language
+All user-facing text is in **Spanish**.
 
 ## Design System
 
-SiteSentry QA follows a **Flat Design + Minimalism** aesthetic tailored for a SaaS developer tool:
+SiteSentry QA follows a **Flat Design + Minimalism** aesthetic. Design tokens are implemented as CSS custom properties in `:root` (see `frontend/src/index.css`):
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| Primary | `#2563EB` | Buttons, links, active states, focus rings |
-| Primary hover | `#1D4ED8` | Button hover, active chip |
-| Secondary | `#3B82F6` | Accents, slider handles |
-| Page background | `#F8FAFC` | Body, page backgrounds |
-| Card background | `#FFFFFF` | Cards, sections, forms |
-| Text primary | `#0F172A` | Headings, body text |
-| Text secondary | `#475569` | Subtitles, chip text |
-| Text muted | `#94A3B8` | Meta info, placeholders, hints |
-| Border default | `#E2E8F0` | Card borders, inputs |
-| Success | `#16A34A` | Score green, CSV button |
-| Warning | `#F59E0B` | Medium severity, score warning |
-| Error | `#EF4444` | High severity, error states |
-| CTA accent | `#F97316` | Call-to-action highlights |
+```css
+--color-primary: #2563eb;
+--color-primary-hover: #1d4ed8;
+--color-secondary: #3b82f6;
+--color-bg: #f8fafc;
+--color-card: #ffffff;
+--color-text: #0f172a;
+--color-text-secondary: #475569;
+--color-text-muted: #94a3b8;
+--color-border: #e2e8f0;
+--color-success: #16a34a;
+--color-warning: #f59e0b;
+--color-error: #ef4444;
+--color-accent: #f97316;
+--radius-sm: 6px;
+--radius-md: 10px;
+--radius-lg: 16px;
+--shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+--shadow-md: 0 4px 24px rgba(0,0,0,0.07);
+--transition: 0.2s ease;
+```
+
+All component CSS files use these variables. New CSS should use `var(--color-*)` instead of hardcoded hex values.
 
 **Typography:**
 - **Primary font:** `Inter` (Google Fonts, weights 400-800), fallback to system sans-serif
@@ -268,35 +293,31 @@ SiteSentry QA follows a **Flat Design + Minimalism** aesthetic tailored for a Sa
 - **Base size:** `16px` body, `1.5` line-height
 - **Headings:** `700` weight, `-0.3px` letter-spacing
 
-**Effects:**
-- Border radius: `10px`-`16px` (cards, buttons, inputs, modals)
-- Shadows: Subtle (`0 1px 3px rgba(0,0,0,0.05)`) to medium (`0 4px 24px rgba(0,0,0,0.07)`)
-- Transitions: `0.2s` ease on hover, focus, active states
-- Header gradient: `linear-gradient(135deg, #0f172a 0%, #1e3a5f 40%, #2563eb 100%)`
-- Modal overlay: `rgba(15, 23, 42, 0.6)` with `backdrop-filter: blur(4px)`
-
 **Accessibility:**
-- `:focus-visible` ring: `2px solid #2563EB` with `2px` offset
+- `:focus-visible` ring: `2px solid var(--color-primary)` with `2px` offset
 - `prefers-reduced-motion` respected globally
 - `::selection` uses `rgba(37, 99, 235, 0.15)` background
 - All interactive elements have `cursor: pointer`
 
-**Styling architecture:** Pure CSS with individual `.css` files per component. No Tailwind, no CSS modules, no styled-components. All design tokens are hardcoded hex values — there is no CSS custom properties/variables system.
+## Adding a New Checker
 
-**Home page sections:**
-- Hero with subtitle listing all 9 checkers
-- URL input + flow selector + "Nuevo flujo" button
-- 9 checker cards in a responsive grid
-- 4 capability cards: Flujos Interactivos, Regresion Visual, Explicaciones con IA, Exportacion de Reportes
-- Recent scans list
-- Settings link (gear icon in header)
+1. Add new value to `IssueType` enum in both `backend/src/types/index.ts` and `frontend/src/types/index.ts`
+2. Create `backend/src/checkers/MyChecker.ts` implementing `IChecker`
+3. Export and register in `backend/src/checkers/index.ts`
+4. Add entry to `typeConfig` in `frontend/src/config/issueTypeConfig.ts` (single source of truth for labels, icons, and colors)
+5. Add severity logic using shared severity helpers from `checkers/severity.ts` where applicable
 
-## Key Env Vars
+## Adding a New Migration
 
-| Var | Default | Description |
-|-----|---------|-------------|
-| `PORT` | `3001` | Backend API port |
-| `FRONTEND_URL` | `http://localhost:5173` | CORS allowed origin |
-| `DB_PATH` | `./data/sitesentry.db` | SQLite database path |
-| `PAGE_TIMEOUT` | `60000` | Page load timeout (ms) |
-| `VISUAL_DIFF_THRESHOLD` | `0.05` | pixelmatch threshold (0-1) |
+1. Append a new entry to the `migrations` array in `backend/src/database/db.ts`
+2. Each entry has: `{ version: N, name: 'descriptive_name', sql: '...' }`
+3. The migration system automatically applies pending migrations on next boot
+4. Existing databases are auto-seeded with all current migrations as "applied"
+
+## Frontend Config
+
+Issue type labels, icons, severity labels, and scan status labels are centralized in `frontend/src/config/issueTypeConfig.ts`. All components import from this single source. When adding a new IssueType:
+
+1. Add it to `typeConfig` with label, icon, and color
+2. `getTypeIcon()`, `getTypeLabel()`, `getSeverityLabel()`, and `getStatusLabel()` are auto-derived
+3. No need to update `ErrorGroup.tsx`, `ErrorCard.tsx`, `ReportViewer.tsx`, or `Home.tsx` individually
