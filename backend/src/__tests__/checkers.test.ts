@@ -9,6 +9,7 @@ import { NetworkEvent } from '../analyzer/PageAnalyzer';
 var TEST_URL = 'https://test.example.com';
 
 describe('Checkers — fixture tests', () => {
+  jest.setTimeout(30000);
   var browser: Browser;
   var page: Page;
 

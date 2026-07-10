@@ -1,6 +1,7 @@
 import { Page } from 'playwright';
-import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
+import { IChecker, Issue, IssueType } from '../types';
 import { NetworkEvent, ConsoleEvent } from '../analyzer/PageAnalyzer';
+import { patternSeverity } from './severity';
 
 const NOISE_PATTERNS = [
   'favicon.ico',
@@ -49,8 +50,7 @@ export class ConsoleErrorChecker implements IChecker {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      const isHigh = HIGH_PATTERNS.some((p) => error.text.includes(p));
-      const severity = isHigh ? IssueSeverity.HIGH : IssueSeverity.MEDIUM;
+      const severity = patternSeverity(error.text, HIGH_PATTERNS);
 
       const description = this.buildDescription(error.text);
 

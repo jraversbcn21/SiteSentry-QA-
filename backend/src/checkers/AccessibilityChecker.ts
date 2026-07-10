@@ -2,13 +2,14 @@ import { Page } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
 import { NetworkEvent } from '../analyzer/PageAnalyzer';
+import { mapBy } from './severity';
 
-const IMPACT_TO_SEVERITY: Record<string, IssueSeverity> = {
+var impactToSeverity = mapBy<string>({
   critical: IssueSeverity.HIGH,
   serious: IssueSeverity.HIGH,
   moderate: IssueSeverity.MEDIUM,
   minor: IssueSeverity.LOW,
-};
+}, IssueSeverity.MEDIUM);
 
 const WCAG_DESCRIPTIONS: Record<string, string> = {
   'image-alt': 'Imagen sin texto alternativo (alt)',
@@ -41,7 +42,7 @@ export class AccessibilityChecker implements IChecker {
         .analyze();
 
       for (const violation of results.violations.slice(0, 30)) {
-        const severity = IMPACT_TO_SEVERITY[violation.impact ?? ''] ?? IssueSeverity.MEDIUM;
+        const severity = impactToSeverity(violation.impact);
         const label = WCAG_DESCRIPTIONS[violation.id] ?? violation.description;
 
         const affectedCount = violation.nodes.length;
