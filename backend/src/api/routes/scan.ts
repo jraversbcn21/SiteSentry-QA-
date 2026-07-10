@@ -45,6 +45,23 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
     var { url, config, visualDiffThreshold } = validation.data;
     var normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
 
+    var parsedUrl: URL;
+    try {
+      parsedUrl = new URL(normalizedUrl);
+    } catch {
+      return res.status(400).json({ error: 'URL invalida' });
+    }
+
+    var hostname = parsedUrl.hostname.toLowerCase();
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '0.0.0.0'
+    ) {
+      return res.status(400).json({ error: 'No se permite escanear direcciones locales (localhost/loopback).' });
+    }
+
     var resolvedFlow: FlowInfo | undefined;
 
     if (validation.data.flow) {

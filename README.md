@@ -9,28 +9,21 @@ Analizador funcional de paginas web. Introduce una URL y detecta problemas reale
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: Node.js + TypeScript + Express
 - **Browser Automation**: Playwright (Chromium)
-- **Queue**: BullMQ + Redis
-- **Database**: PostgreSQL (Supabase) + Prisma
+- **Queue**: In-process (EventEmitter, sin dependencias externas)
+- **Database**: SQLite via better-sqlite3
+
+**Sin servicios externos.** Todo corre en un solo proceso Node.js: API REST + procesamiento de scans en el mismo proceso. No requiere Redis, PostgreSQL ni ningun servicio externo.
 
 ## Requisitos
 
 - Node.js 18+
-- Redis 6+
-- PostgreSQL 14+ (o cuenta en [Supabase](https://supabase.com))
 
 ## Instalacion
-
-Consulta [SETUP.md](./SETUP.md) para la guia completa paso a paso.
-
-### Resumen rapido
 
 ```bash
 # Backend
 cd backend
 npm install
-cp .env.example .env   # Configurar DATABASE_URL y REDIS_URL
-npm run prisma:generate
-npm run prisma:migrate
 npx playwright install chromium
 
 # Frontend
@@ -38,22 +31,19 @@ cd frontend
 npm install
 ```
 
-## Ejecucion (3 terminales)
+## Ejecucion (2 terminales)
 
 ```bash
-# Terminal 1 - API
+# Terminal 1 - Backend (API + Worker en un solo proceso)
 cd backend && npm run dev
 
-# Terminal 2 - Worker
-cd backend && npm run worker
-
-# Terminal 3 - Frontend
+# Terminal 2 - Frontend
 cd frontend && npm run dev
 ```
 
 Abre `http://localhost:5173`, introduce una URL y lanza el analisis.
 
-## Que detecta
+## Que detecta (9 checkers)
 
 ### Recursos Rotos
 - Imagenes, CSS, JS, fuentes que no cargan (4xx/5xx o fallo de red)
@@ -85,16 +75,34 @@ Abre `http://localhost:5173`, introduce una URL y lanza el analisis.
 - Modales sin boton de cierre
 - Banners de cookies que bloquean interaccion
 
+### Errores de Consola
+- Errores JavaScript en consola
+- Errores CORS reportados por el navegador
+
+### Rendimiento
+- TTFB, DOMContentLoaded, tiempo de carga total
+- Conteo de nodos DOM y recursos cargados
+
+### Accesibilidad
+- Violaciones WCAG 2.0A/AA/2.1A/AA via axe-core
+
+## Funcionalidades adicionales
+
+- **Flujos interactivos**: Define secuencias multi-paso (login, busqueda, carrito) via JSON o importando scripts de Playwright codegen
+- **Regresion visual**: Compara screenshots entre scans de la misma URL con pixelmatch
+- **Explicaciones con IA**: Integracion con Groq LLM para explicar issues detectados
+- **Exportacion**: JSON y CSV descargables del reporte
+
 ## Variables de Entorno
 
-Archivo `backend/.env`:
+Archivo `backend/.env` (opcional, todo tiene defaults funcionales):
 
 ```env
-DATABASE_URL="postgresql://postgres:password@db.xxx.supabase.co:5432/postgres"
-REDIS_URL="redis://localhost:6379"
 PORT=3001
 FRONTEND_URL=http://localhost:5173
+DB_PATH=./data/sitesentry.db
 PAGE_TIMEOUT=60000
+VISUAL_DIFF_THRESHOLD=0.05
 ```
 
 ## Estructura
@@ -105,30 +113,25 @@ SiteSentry QA/
 │   └── src/
 │       ├── api/           # Express REST API
 │       ├── analyzer/      # PageAnalyzer (nucleo)
-│       ├── checkers/      # 6 checkers funcionales
-│       ├── workers/       # ScanWorker (BullMQ)
-│       ├── queue/         # Configuracion de colas
-│       ├── database/      # Prisma schema y cliente
+│       ├── checkers/      # 9 checkers funcionales
+│       ├── workers/       # ScanWorker + procesador de cola
+│       ├── queue/         # Cola in-process (EventEmitter)
+│       ├── database/      # SQLite via better-sqlite3
 │       └── types/         # Tipos TypeScript
 ├── frontend/
 │   └── src/
 │       ├── components/    # Componentes React
 │       ├── pages/         # Paginas
-│       ├── services/      # Cliente API
+│       ├── services/      # Cliente API + AI
 │       └── types/         # Tipos TypeScript
 └── README.md
 ```
-
-## Seguridad (Supabase)
-
-Si usas Supabase, habilita Row Level Security (RLS). Consulta `backend/security/README-SEGURIDAD.md`.
 
 ## Troubleshooting
 
 | Problema | Solucion |
 |---|---|
-| No conecta a DB | Verificar `DATABASE_URL` en `.env` |
-| No conecta a Redis | Verificar `REDIS_URL` en `.env` |
-| Analisis no progresa | Verificar que el worker esta corriendo |
+| Analisis no progresa | Verificar logs del backend |
 | Timeout en paginas pesadas | Aumentar `PAGE_TIMEOUT` en `.env` |
 | Playwright no encuentra navegador | `npx playwright install chromium` |
+| Error de CORS | Verificar `FRONTEND_URL` en `.env` |

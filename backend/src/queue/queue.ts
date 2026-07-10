@@ -10,6 +10,7 @@ interface Job {
 
 class SimpleQueue extends EventEmitter {
   private jobs: Job[] = [];
+  private activeJob: Job | null = null;
   private processing = false;
   private nextId = 1;
 
@@ -22,7 +23,11 @@ class SimpleQueue extends EventEmitter {
   }
 
   async getJobs(_types: string[]): Promise<Job[]> {
-    return this.jobs;
+    var allJobs = [...this.jobs];
+    if (this.activeJob) {
+      allJobs.push(this.activeJob);
+    }
+    return allJobs;
   }
 
   private async processNext() {
@@ -30,10 +35,13 @@ class SimpleQueue extends EventEmitter {
     this.processing = true;
     while (this.jobs.length > 0) {
       var job = this.jobs.shift()!;
+      this.activeJob = job;
       try {
         await this.emitAsync('process', job);
       } catch (err) {
         this.emit('failed', job, err);
+      } finally {
+        this.activeJob = null;
       }
     }
     this.processing = false;

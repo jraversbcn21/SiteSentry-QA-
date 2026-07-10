@@ -17,11 +17,10 @@ There is a full architecture/code audit at **[`docs/architecture-audit-2026-07-0
 ### Backend (`backend/`)
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start API server with tsx watch (port 3001) |
-| `npm run dev:worker` | Start worker with tsx watch (in-process, no Redis required) |
+| `npm run dev` | Start API server with tsx watch (port 3001) — single-process mode: API + worker run in the same Node process |
 | `npm run build` | TypeScript compile (`tsc`) |
 | `npx tsc --noEmit` | Type-check without emitting |
-| `npx jest --no-coverage` | Run test suite |
+| `npm test` | Run Jest test suite |
 
 ### Frontend (`frontend/`)
 | Command | Description |
@@ -30,10 +29,9 @@ There is a full architecture/code audit at **[`docs/architecture-audit-2026-07-0
 | `npm run build` | Type-check + Vite production build |
 | `npm run lint` | ESLint |
 
-### Running the app (3 terminals)
-1. `cd backend && npm run dev` (API on port 3001)
-2. `cd backend && npm run dev:worker` (Worker process)
-3. `cd frontend && npm run dev` (Vite on port 5173)
+### Running the app (2 terminals)
+1. `cd backend && npm run dev` (API + Worker on port 3001)
+2. `cd frontend && npm run dev` (Vite on port 5173)
 
 ## Architecture
 
@@ -41,7 +39,7 @@ There is a full architecture/code audit at **[`docs/architecture-audit-2026-07-0
 POST /api/scan
   → SQLite creates Scan row
   → In-process queue adds job
-  → Worker picks up job
+  → Worker picks up job (same process, async via EventEmitter)
   → Playwright opens page
   → [Flow mode: execute steps (click, type, navigate...)]
   → PageAnalyzer intercepts network + scrolls
@@ -58,7 +56,7 @@ POST /api/scan
 | `src/analyzer/PageAnalyzer.ts` | Core engine: browser context, network interception, console capture, full-page scroll |
 | `src/checkers/` | 9 checkers implementing `IChecker.check(url, page, networkEvents, consoleErrors?)` |
 | `src/workers/ScanWorker.ts` | Orchestrates scan: browser → analyze → [flow steps] → checkers → screenshots → visual regression → persist |
-| `src/workers/index.ts` | Worker process: listens to in-process queue, executes scan jobs |
+| `src/workers/index.ts` | Worker process: listens to in-process queue, executes scan jobs. Runs in the same Node process as the API server (single-process mode). Also recovers orphaned PENDING/RUNNING scans on startup. |
 | `src/api/routes/scan.ts` | POST scan (accepts flow/flowId/visualDiffThreshold), GET status. Uses better-sqlite3 (no Prisma). |
 | `src/api/routes/reports.ts` | GET report with issues + screenshots + visual diffs + per-step results, GET reports list |
 | `src/api/routes/flows.ts` | CRUD for reusable interactive flows (5 endpoints) |

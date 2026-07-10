@@ -15,21 +15,19 @@ There is a full architecture/code audit at **[`docs/architecture-audit-2026-07-0
 ## Commands
 
 ### Backend (from `backend/`)
-- `npm run dev` — Start API server with tsx watch (hot reload, port 3001)
-- `npm run dev:worker` — Start worker with tsx watch (in-process, no Redis required)
+- `npm run dev` — Start API server with tsx watch (hot reload, port 3001) — single-process mode: API + worker run in the same Node process
 - `npm run build` — TypeScript compile (`tsc`)
 - `npx tsc --noEmit` — Type-check without emitting
-- `npx jest --no-coverage` — Run test suite
+- `npm test` — Run Jest test suite
 
 ### Frontend (from `frontend/`)
 - `npm run dev` — Start Vite dev server (port 5173)
 - `npm run build` — Type-check + Vite production build
 - `npm run lint` — ESLint
 
-### Running the app requires 3 terminals
-1. `cd backend && npm run dev` (API on port 3001)
-2. `cd backend && npm run dev:worker` (Worker process, in-process)
-3. `cd frontend && npm run dev` (Vite on port 5173)
+### Running the app requires 2 terminals
+1. `cd backend && npm run dev` (API + Worker on port 3001)
+2. `cd frontend && npm run dev` (Vite on port 5173)
 
 ## Architecture
 
@@ -43,7 +41,7 @@ There is a full architecture/code audit at **[`docs/architecture-audit-2026-07-0
 - **`src/analyzer/PageAnalyzer.ts`** — Core engine. Creates a BrowserContext with a realistic fingerprint (userAgent, locale, Sec-CH-UA headers), intercepts all network requests/responses/failures, captures console errors, performs full-page scroll. Returns `PageAnalysis` with `page`, `NetworkEvent[]`, `ConsoleEvent[]`, `loadTime`, `scrollHeight`.
 - **`src/checkers/`** — 9 checkers, each implements `IChecker.check(url, page, networkEvents, consoleErrors?)`. See checkers section below.
 - **`src/workers/ScanWorker.ts`** — Orchestrates the full pipeline: launch browser → analyze → [flow steps] → run checkers (per step in flow mode) → capture screenshots (per step in flow mode) → run visual regression (pixelmatch) → save issues. Anti-bot blocks saved as `FAILED_API/HIGH` issue instead of failing.
-- **`src/workers/index.ts`** — Worker process: listens to in-process queue, executes scan jobs via `processScanJob`. Uses `SimpleQueue` (EventEmitter).
+- **`src/workers/index.ts`** — Worker process: listens to in-process queue, executes scan jobs via `processScanJob`. Runs in the same Node process as the API server (single-process mode). Also recovers orphaned PENDING/RUNNING scans on startup.
 - **`src/api/routes/scan.ts`** — POST scan (accepts `flow`, `flowId`, `visualDiffThreshold`), GET status with per-step progress. Uses `better-sqlite3` directly — no Prisma.
 - **`src/api/routes/reports.ts`** — GET report (includes `fullPageScreenshot`, `screenshot_path` per issue, `visualDiffs[]`, `baselineInfo`, `flow`, per-step `steps[]` with summaries and screenshots), GET all reports list.
 - **`src/api/routes/flows.ts`** — CRUD for reusable interactive flows: `GET /api/flows`, `GET /api/flows/:id`, `POST /api/flows`, `PUT /api/flows/:id`, `DELETE /api/flows/:id`.

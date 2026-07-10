@@ -4,6 +4,7 @@ import { getDb } from '../database/db';
 import { ScanStatus, IssueType, IssueSeverity } from '../types';
 import { PageAnalyzer } from '../analyzer/PageAnalyzer';
 import { checkers } from '../checkers';
+import { validateUrl } from '../security/ssrf';
 import path from 'path';
 import fs from 'fs';
 import pixelmatch from 'pixelmatch';
@@ -206,6 +207,18 @@ export async function processScanJob(job: { data: JobData; updateProgress?: (pro
     db.prepare('UPDATE scans SET status = ? WHERE id = ?').run(ScanStatus.RUNNING, scanId);
 
     console.log(`[ScanWorker] Analizando pagina: ${url} (scan ${scanId})`);
+
+    try {
+      await validateUrl(url);
+    } catch (ssrfErr: any) {
+      console.warn(`[ScanWorker] SSRF bloqueado para ${url}: ${ssrfErr.message}`);
+      db.prepare('UPDATE scans SET status = ?, completed_at = ? WHERE id = ?').run(
+        ScanStatus.FAILED,
+        new Date().toISOString(),
+        scanId
+      );
+      return;
+    }
 
     if (job.updateProgress) {
       try { job.updateProgress({ phase: 'launching_browser' }); } catch {}

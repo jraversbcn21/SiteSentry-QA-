@@ -7,6 +7,7 @@ import { scanRoutes } from './routes/scan';
 import { reportsRoutes } from './routes/reports';
 import { flowsRoutes } from './routes/flows';
 import { getDb } from '../database/db';
+import { authMiddleware } from './middleware/auth';
 import '../workers/index';
 
 const app = express();
@@ -35,6 +36,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Auth middleware for /api/* routes
+app.use('/api', authMiddleware);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -130,6 +134,6 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 SiteSentry QA Backend corriendo en puerto ${PORT}`);
+  console.log(`🚀 SiteSentry QA Backend iniciado en puerto ${PORT} (API + Worker single-process)`);
   console.log(`   Health: http://localhost:${PORT}/health`);
 });

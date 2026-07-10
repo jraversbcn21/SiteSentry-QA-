@@ -3,50 +3,14 @@
 ## Requisitos
 
 - Node.js 18+ ([descargar](https://nodejs.org/))
-- npm
 
-## Paso 1: Supabase (Base de Datos)
+**No se requieren servicios externos.** SQLite se crea automaticamente en `backend/data/sitesentry.db`. La cola de trabajos es en memoria (EventEmitter). Todo corre en un solo proceso.
 
-1. Crea un proyecto en [supabase.com](https://supabase.com)
-2. Ve a **Settings > Database**
-3. Copia la **Connection string (URI)**
-4. Reemplaza `[YOUR-PASSWORD]` con tu contrasena
-5. Resultado: `postgresql://postgres:tu_password@db.xxxxx.supabase.co:5432/postgres`
-
-## Paso 2: Redis
-
-**Opcion A - Redis local (Docker):**
-```bash
-docker run -d -p 6379:6379 redis
-```
-
-**Opcion B - Redis Cloud:** Crea una cuenta gratis en [redis.com](https://redis.com/try-free/)
-
-## Paso 3: Backend
+## Paso 1: Backend
 
 ```bash
 cd backend
 npm install
-```
-
-Crea el archivo `.env`:
-```bash
-cp .env.example .env
-```
-
-Edita `backend/.env`:
-```env
-DATABASE_URL="postgresql://postgres:TU_PASSWORD@db.xxxxx.supabase.co:5432/postgres"
-REDIS_URL="redis://localhost:6379"
-PORT=3001
-FRONTEND_URL=http://localhost:5173
-PAGE_TIMEOUT=60000
-```
-
-Genera Prisma y migra la base de datos:
-```bash
-npm run prisma:generate
-npm run prisma:migrate
 ```
 
 Instala Chromium para Playwright:
@@ -54,39 +18,44 @@ Instala Chromium para Playwright:
 npx playwright install chromium
 ```
 
-## Paso 4: Frontend
+### Variables de entorno (opcional)
+
+Crea `backend/.env` (todo tiene defaults funcionales, no es obligatorio):
+
+```env
+PORT=3001
+FRONTEND_URL=http://localhost:5173
+DB_PATH=./data/sitesentry.db
+PAGE_TIMEOUT=60000
+VISUAL_DIFF_THRESHOLD=0.05
+```
+
+## Paso 2: Frontend
 
 ```bash
 cd frontend
 npm install
 ```
 
-## Paso 5: Iniciar servicios
+## Paso 3: Iniciar servicios
 
-Necesitas **3 terminales** abiertas simultaneamente:
+Necesitas **2 terminales** abiertas simultaneamente:
 
-**Terminal 1 - API:**
+**Terminal 1 - Backend (API + Worker):**
 ```bash
 cd backend
 npm run dev
 ```
-Esperado: `Server running on port 3001`
+Esperado: `SiteSentry QA Backend iniciado en puerto 3001`
 
-**Terminal 2 - Worker:**
-```bash
-cd backend
-npm run worker
-```
-Esperado: `Scan Worker iniciado`
-
-**Terminal 3 - Frontend:**
+**Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
 Esperado: `Local: http://localhost:5173/`
 
-## Paso 6: Probar
+## Paso 4: Probar
 
 1. Abre `http://localhost:5173`
 2. Introduce una URL (ej: `https://example.com`)
@@ -94,30 +63,21 @@ Esperado: `Local: http://localhost:5173/`
 4. Espera 10-60 segundos
 5. Revisa el reporte con los problemas detectados
 
-## Verificacion en Supabase
-
-Ve al **Table Editor** en tu dashboard de Supabase. Deberias ver:
-- Tabla `Scan` con tu analisis
-- Tabla `Issue` con los errores detectados
-
 ## Solucion de Problemas
 
-### No conecta a la base de datos
-- Verifica `DATABASE_URL` en `.env`
-- Confirma que reemplazaste `[YOUR-PASSWORD]`
-- Verifica que tu proyecto Supabase este activo
-
-### No conecta a Redis
-- Redis local: `redis-cli ping` debe responder `PONG`
-- Redis Cloud: verifica la URL en `.env`
+### No se crea la base de datos
+- El archivo `backend/data/sitesentry.db` se crea automaticamente al iniciar el servidor
+- Verifica que el directorio `backend/data/` tenga permisos de escritura
 
 ### El analisis no progresa
-- Verifica que el Worker este corriendo (Terminal 2)
-- Revisa los logs del worker
+- El worker corre en el mismo proceso que la API, verifica los logs del backend
 
 ### Error de CORS
-- Verifica que `FRONTEND_URL` en `.env` sea `http://localhost:5173`
-- Reinicia el backend
+- Verifica que `FRONTEND_URL` en `.env` coincida con la URL del frontend
+- Por defecto acepta `http://localhost:5173`
 
 ### Timeout en paginas pesadas
 - Aumenta `PAGE_TIMEOUT` en `.env` (por defecto 60000ms = 60s)
+
+### Playwright no encuentra navegador
+- Ejecuta `npx playwright install chromium` en `backend/`
