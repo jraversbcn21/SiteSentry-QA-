@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getScreenshotUrl } from '../../services/api';
 import './VisualDiffViewer.css';
 
 interface VisualDiffViewerProps {
@@ -33,10 +34,10 @@ export default function VisualDiffViewer({
         <>
           <div className="vd-slider-container" style={{ maxHeight }}>
             <div className="vd-slider-current">
-              <img src={`/screenshots/${currentSrc}`} alt={`Actual: ${alt}`} style={{ maxHeight }} />
+              <img src={getScreenshotUrl(currentSrc)} alt={`Actual: ${alt}`} style={{ maxHeight }} />
             </div>
             <div className="vd-slider-baseline" style={{ width: `${sliderPos}%` }}>
-              <img src={`/screenshots/${baselineSrc}`} alt={`Baseline: ${alt}`} style={{ maxHeight }} />
+              <img src={getScreenshotUrl(baselineSrc)} alt={`Baseline: ${alt}`} style={{ maxHeight }} />
             </div>
             <div className="vd-slider-line" style={{ left: `${sliderPos}%` }} />
             <div className="vd-slider-handle" style={{ left: `${sliderPos}%` }} />
@@ -65,7 +66,7 @@ export default function VisualDiffViewer({
           <span className="vd-threshold-info">Umbral: {(threshold * 100).toFixed(1)}%</span>
         </div>
         <div className="vd-diff-image-container" style={{ maxHeight }}>
-          <img src={`/screenshots/${diffSrc}`} alt={`Diff: ${alt}`} style={{ maxHeight }} />
+          <img src={getScreenshotUrl(diffSrc)} alt={`Diff: ${alt}`} style={{ maxHeight }} />
         </div>
       </div>
     </div>

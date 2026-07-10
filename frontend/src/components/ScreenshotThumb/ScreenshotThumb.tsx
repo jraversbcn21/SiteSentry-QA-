@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Lightbox from '../Lightbox/Lightbox';
+import { getScreenshotUrl } from '../../services/api';
 import './ScreenshotThumb.css';
 
 interface ScreenshotThumbProps {
@@ -13,7 +14,7 @@ export default function ScreenshotThumb({ path, alt, maxHeight = 200 }: Screensh
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
-  const src = `/screenshots/${path}`;
+  const src = getScreenshotUrl(path);
 
   if (error) {
     return (

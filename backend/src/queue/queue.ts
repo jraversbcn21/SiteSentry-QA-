@@ -13,6 +13,7 @@ class SimpleQueue extends EventEmitter {
   private activeJob: Job | null = null;
   private processing = false;
   private nextId = 1;
+  private shuttingDown = false;
 
   async add(name: string, data: any, _opts?: any): Promise<Job> {
     var id = String(this.nextId++);
@@ -30,8 +31,15 @@ class SimpleQueue extends EventEmitter {
     return allJobs;
   }
 
+  async shutdown(): Promise<void> {
+    this.shuttingDown = true;
+    while (this.processing || this.activeJob) {
+      await new Promise(function(resolve) { setTimeout(resolve, 100); });
+    }
+  }
+
   private async processNext() {
-    if (this.processing) return;
+    if (this.processing || this.shuttingDown) return;
     this.processing = true;
     while (this.jobs.length > 0) {
       var job = this.jobs.shift()!;

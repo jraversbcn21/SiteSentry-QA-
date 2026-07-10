@@ -12,6 +12,10 @@ export function unwrapApiError(err: any): string {
   return err?.response?.data?.error || err?.message || 'Error de conexion con el servidor.';
 }
 
+export function getScreenshotUrl(path: string): string {
+  return '/screenshots/' + path;
+}
+
 export const scanApi = {
   startScan: async (request: ScanRequest): Promise<ScanResponse> => {
     const response = await api.post<ScanResponse>('/scan', request);

@@ -60,25 +60,48 @@ export default function FlowEditor({ editFlow, onSave, onCancel }: FlowEditorPro
     onSave(flow);
   }
 
+  function StepField({ placeholder, field, type, stepIndex, value }: { placeholder: string; field: string; type?: string; stepIndex: number; value: string | number | undefined }) {
+    return (
+      <input
+        className="fe-step-input"
+        placeholder={placeholder}
+        type={type || 'text'}
+        value={value || ''}
+        onChange={function(e) { handleStepChange(stepIndex, field, type === 'number' ? (parseInt(e.target.value, 10) || undefined) : e.target.value); }}
+      />
+    );
+  }
+
   function renderStepFields(step: FlowStep, index: number) {
-    const fields: JSX.Element[] = [];
     if (step.action === 'navigate') {
-      fields.push(<input key="url" className="fe-step-input" placeholder="URL" value={step.url || ''} onChange={function(e) { handleStepChange(index, 'url', e.target.value); }} />);
+      return <StepField field="url" placeholder="URL" stepIndex={index} value={step.url} />;
     } else if (step.action === 'click' || step.action === 'hover') {
-      fields.push(<input key="selector" className="fe-step-input" placeholder="Selector CSS" value={step.selector || ''} onChange={function(e) { handleStepChange(index, 'selector', e.target.value); }} />);
+      return <StepField field="selector" placeholder="Selector CSS" stepIndex={index} value={step.selector} />;
     } else if (step.action === 'type') {
-      fields.push(<input key="selector" className="fe-step-input" placeholder="Selector CSS" value={step.selector || ''} onChange={function(e) { handleStepChange(index, 'selector', e.target.value); }} />);
-      fields.push(<input key="value" className="fe-step-input" placeholder="Valor" value={step.value || ''} onChange={function(e) { handleStepChange(index, 'value', e.target.value); }} />);
+      return (
+        <>
+          <StepField field="selector" placeholder="Selector CSS" stepIndex={index} value={step.selector} />
+          <StepField field="value" placeholder="Valor" stepIndex={index} value={step.value} />
+        </>
+      );
     } else if (step.action === 'wait') {
-      fields.push(<input key="ms" className="fe-step-input" type="number" placeholder="Milisegundos" value={step.ms || ''} onChange={function(e) { handleStepChange(index, 'ms', parseInt(e.target.value, 10) || undefined); }} />);
+      return <StepField field="ms" placeholder="Milisegundos" type="number" stepIndex={index} value={step.ms} />;
     } else if (step.action === 'select') {
-      fields.push(<input key="selector" className="fe-step-input" placeholder="Selector CSS" value={step.selector || ''} onChange={function(e) { handleStepChange(index, 'selector', e.target.value); }} />);
-      fields.push(<input key="value" className="fe-step-input" placeholder="Valor" value={step.value || ''} onChange={function(e) { handleStepChange(index, 'value', e.target.value); }} />);
+      return (
+        <>
+          <StepField field="selector" placeholder="Selector CSS" stepIndex={index} value={step.selector} />
+          <StepField field="value" placeholder="Valor" stepIndex={index} value={step.value} />
+        </>
+      );
     } else if (step.action === 'press') {
-      fields.push(<input key="selector" className="fe-step-input" placeholder="Selector CSS (opcional)" value={step.selector || ''} onChange={function(e) { handleStepChange(index, 'selector', e.target.value); }} />);
-      fields.push(<input key="key" className="fe-step-input" placeholder="Tecla (Enter, Tab...)" value={step.key || ''} onChange={function(e) { handleStepChange(index, 'key', e.target.value); }} />);
+      return (
+        <>
+          <StepField field="selector" placeholder="Selector CSS (opcional)" stepIndex={index} value={step.selector} />
+          <StepField field="key" placeholder="Tecla (Enter, Tab...)" stepIndex={index} value={step.key} />
+        </>
+      );
     }
-    return fields;
+    return null;
   }
 
   return (
