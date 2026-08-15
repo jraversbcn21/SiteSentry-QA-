@@ -10,7 +10,7 @@ Supports interactive multi-step flows (login, search, add to cart) via JSON step
 
 ## Audit Status (2026-07-04 architecture audit)
 
-The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 findings and 38 ordered tasks (T01-T38). **34 of 38 tasks have been executed** across 5 phases:
+The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 findings and 38 ordered tasks (T01-T38). **Audit status: 35 of 38 tasks executed — all in-scope tasks complete (T33 executed 2026-08-15).** The remaining delta are tasks folded into others or explicitly waived in the audit execution log.
 
 | Phase | Tasks | Status |
 |-------|-------|--------|
@@ -21,10 +21,9 @@ The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 fin
 | Phase 5 — Frontend Architecture | T19-T23 | Done |
 | Phase 6 — Shared Types | T24-T25 | Done |
 | Phase 7 — Testing | T02-T03 | Done |
-| Phase 8 — Production Hardening | T26-T34, T36-T38 | Mostly done |
+| Phase 8 — Production Hardening | T26-T34, T36-T38 | Done |
 
-**Remaining (1 task):**
-- **T33 (H9) — PageFacts DOM pre-pass**: Consolidate 16 redundant `page.evaluate()` round-trips across checkers into a shared single-pass DOM snapshot. High-risk (changes data collection, not just code organization). Should only be attempted with full checker test coverage in place (now available: 13 tests). See `docs/architecture-audit-2026-07-04.md` §H9 for full scope and `checkers/domHelpers.ts` for existing visibility-check helpers that can be extended.
+**T33 (H9) — PageFacts DOM pre-pass (executed):** `checkers/pageFacts.ts` provides `collectPageFacts(page)` — a single `page.evaluate()` round-trip that snapshots all 16 DOM fragments the checkers previously queried independently (broken images, background images, empty containers, error states, main content, CORS candidates, forms, modals, cookie blockers, dead buttons, placeholder links, pseudo-disabled buttons, lazy images, spinners, placeholder images, performance metrics). `CheckerRunner` collects it once per run and passes it to every checker via the optional 5th `facts` parameter of `IChecker.check`; checkers fall back to collecting it themselves when called standalone (e.g. in tests).
 
 ## Commands
 
@@ -34,7 +33,7 @@ The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 fin
 | `npm run dev` | Start API server with tsx watch (port 3001) — single-process mode: API + worker run in the same Node process |
 | `npm run build` | TypeScript compile (`tsc`) |
 | `npx tsc --noEmit` | Type-check without emitting |
-| `npm test` | Run Jest test suite (37 tests, 5 suites) |
+| `npm test` | Run Jest test suite (43 tests, 6 suites) |
 
 ### Frontend (`frontend/`)
 | Command | Description |
@@ -73,7 +72,8 @@ POST /api/scan  [auth + rate-limit + SSRF pre-check]
 | `src/checkers/` | 9 checkers implementing `IChecker.check(url, page, networkEvents, consoleErrors?)` |
 | `src/checkers/severity.ts` | Shared severity-policy module: `mapBy`, `patternSeverity`, `thresholdLadder`, `fixedSeverity` |
 | `src/checkers/domHelpers.ts` | Shared DOM-scan snippet builders for `page.evaluate()`: `visibilityCheckSnippet`, `imgSrcSelector`, `dedupByKey` |
-| `src/services/CheckerRunner.ts` | Runs all 9 checkers and collects issues (used by both normal and flow modes) |
+| `src/checkers/pageFacts.ts` | `collectPageFacts(page)`: single-pass DOM snapshot (T33/H9) shared by all checkers via `CheckerRunner`. Fragment logic mirrors the original per-checker snippets exactly. |
+| `src/services/CheckerRunner.ts` | Runs all 9 checkers and collects issues (used by both normal and flow modes). Collects shared `PageFacts` once per run and passes it to each checker. |
 | `src/services/FlowEngine.ts` | Executes interactive flow steps: navigate, click, type, wait, select, hover, press, checkpoint |
 | `src/services/ScreenshotService.ts` | Full-page + per-element screenshot capture, directory creation, last-step copy |
 | `src/services/VisualRegressionService.ts` | Baseline lookup, pixelmatch diff, visual_diffs persistence |

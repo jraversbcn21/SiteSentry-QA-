@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
 import type { NetworkEvent, ConsoleEvent } from '../analyzer/PageAnalyzer';
+import type { PageFacts } from '../checkers/pageFacts';
 
 export enum ScanStatus {
   PENDING = 'PENDING',
@@ -47,7 +48,7 @@ export interface ScanConfig {
 
 export interface IChecker {
   name: string;
-  check(url: string, page: Page, networkEvents: NetworkEvent[], consoleErrors?: ConsoleEvent[]): Promise<Issue[]>;
+  check(url: string, page: Page, networkEvents: NetworkEvent[], consoleErrors?: ConsoleEvent[], facts?: PageFacts): Promise<Issue[]>;
 }
 
 export interface FlowStep {

@@ -1,39 +1,16 @@
 import { Page } from 'playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
-import { NetworkEvent } from '../analyzer/PageAnalyzer';
-import { visibilityCheckSnippet } from './domHelpers';
+import { NetworkEvent, ConsoleEvent } from '../analyzer/PageAnalyzer';
+import { collectPageFacts, PageFacts } from './pageFacts';
 
 export class ContentChecker implements IChecker {
   name = 'ContentChecker';
 
-  async check(url: string, page: Page, _networkEvents: NetworkEvent[]): Promise<Issue[]> {
+  async check(url: string, page: Page, _networkEvents: NetworkEvent[], _consoleErrors?: ConsoleEvent[], facts?: PageFacts): Promise<Issue[]> {
     const issues: Issue[] = [];
 
-    const emptyContainers: Array<{ selector: string; tag: string; className: string; id: string; height: number }> = await page.evaluate(`(() => {
-      var selectors = ['main','[role="main"]','.products','.product-list','.product-grid','.items','.results','.content','.listing','.grid','.cards','.feed','[data-testid]','ul.list','ol.list','section > div'];
-      var results = [];
-      for (var s = 0; s < selectors.length; s++) {
-        var elements = document.querySelectorAll(selectors[s]);
-        for (var i = 0; i < elements.length; i++) {
-          var el = elements[i];
-          var rect = el.getBoundingClientRect();
-          var style = window.getComputedStyle(el);
-          if (style.display === 'none' || style.visibility === 'hidden') continue;
-          var childCount = el.children.length;
-          var textLength = (el.textContent || '').trim().length;
-          if (rect.height > 50 && rect.width > 100 && childCount === 0 && textLength === 0) {
-            results.push({
-              selector: selectors[s],
-              tag: el.tagName.toLowerCase(),
-              className: (el.className && typeof el.className === 'string') ? el.className.substring(0, 60) : '',
-              id: el.id || '',
-              height: Math.round(rect.height)
-            });
-          }
-        }
-      }
-      return results.slice(0, 15);
-    })()`);
+    const f = facts ?? await collectPageFacts(page);
+    const emptyContainers = f.emptyContainers;
 
     for (const container of emptyContainers) {
       const identifier = container.id
@@ -50,26 +27,7 @@ export class ContentChecker implements IChecker {
       });
     }
 
-    const errorStates: Array<{ text: string; selector: string }> = await page.evaluate(`(() => {
-      var errorSelectors = ['.error','.error-message','[class*="error"]','[class*="Error"]','.alert-danger','.alert-error','[role="alert"]','.no-results','.empty-state','.not-found'];
-      var results = [];
-      for (var s = 0; s < errorSelectors.length; s++) {
-        try {
-          var elements = document.querySelectorAll(errorSelectors[s]);
-          for (var i = 0; i < elements.length; i++) {
-            var el = elements[i];
-            var style = window.getComputedStyle(el);
-            var rect = el.getBoundingClientRect();
-            var isVisible = ${visibilityCheckSnippet()} && rect.height > 0;
-            if (isVisible) {
-              var text = (el.textContent || '').trim().substring(0, 100);
-              if (text.length > 0) results.push({ text: text, selector: errorSelectors[s] });
-            }
-          }
-        } catch(e) {}
-      }
-      return results.slice(0, 10);
-    })()`);
+    const errorStates = f.errorStates;
 
     for (const error of errorStates) {
       issues.push({
@@ -81,23 +39,7 @@ export class ContentChecker implements IChecker {
       });
     }
 
-    const hiddenWithContent: { mainHasContent: boolean; tag?: string; id?: string; className?: string; selector?: string } = await page.evaluate(`(() => {
-      var containers = document.querySelectorAll('main, [role="main"], .content, #content, #app, #root');
-      if (containers.length === 0) return { mainHasContent: true };
-      for (var i = 0; i < containers.length; i++) {
-        var text = (containers[i].textContent || '').trim();
-        if (text.length < 10) {
-          return {
-            mainHasContent: false,
-            tag: containers[i].tagName.toLowerCase(),
-            id: containers[i].id || '',
-            className: (containers[i].className && typeof containers[i].className === 'string') ? containers[i].className.substring(0, 40) : '',
-            selector: containers[i].id ? '#' + containers[i].id : containers[i].tagName.toLowerCase()
-          };
-        }
-      }
-      return { mainHasContent: true };
-    })()`);
+    const hiddenWithContent = f.mainContent;
 
     if (!hiddenWithContent.mainHasContent && hiddenWithContent.tag) {
       issues.push({

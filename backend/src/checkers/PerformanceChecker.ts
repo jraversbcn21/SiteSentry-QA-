@@ -1,41 +1,16 @@
 import { Page } from 'playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
-import { NetworkEvent } from '../analyzer/PageAnalyzer';
-
-interface PerformanceMetrics {
-  ttfb: number;
-  domContentLoaded: number;
-  fullLoad: number;
-  domNodes: number;
-  resourceCount: number;
-  totalTransferKB: number;
-}
+import { NetworkEvent, ConsoleEvent } from '../analyzer/PageAnalyzer';
+import { collectPageFacts, PageFacts, PerformanceFacts } from './pageFacts';
 
 export class PerformanceChecker implements IChecker {
   name = 'PerformanceChecker';
 
-  async check(url: string, page: Page, networkEvents: NetworkEvent[]): Promise<Issue[]> {
+  async check(url: string, page: Page, networkEvents: NetworkEvent[], _consoleErrors?: ConsoleEvent[], facts?: PageFacts): Promise<Issue[]> {
     const issues: Issue[] = [];
 
-    const metrics: PerformanceMetrics = await page.evaluate(`(() => {
-      var t = performance.timing;
-      var nav = performance.getEntriesByType('navigation')[0];
-      var resources = performance.getEntriesByType('resource');
-      var totalBytes = resources.reduce(function(sum, r) { return sum + (r.transferSize || 0); }, 0);
-      var navStart = t.navigationStart;
-      var ttfb = t.responseStart > navStart ? t.responseStart - navStart : 0;
-      var dcl = t.domContentLoadedEventEnd > navStart ? t.domContentLoadedEventEnd - navStart : 0;
-      var load = t.loadEventEnd > navStart ? t.loadEventEnd - navStart : 0;
-      var nodes = document.querySelectorAll('*').length;
-      return {
-        ttfb: ttfb,
-        domContentLoaded: dcl,
-        fullLoad: load,
-        domNodes: nodes,
-        resourceCount: resources.length,
-        totalTransferKB: Math.round(totalBytes / 1024)
-      };
-    })()`);
+    const f = facts ?? await collectPageFacts(page);
+    const metrics: PerformanceFacts = f.performance;
 
     if (metrics.ttfb > 2000) {
       issues.push({

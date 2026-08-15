@@ -7,3 +7,6 @@ playwright/.cache/
 coverage/
 *.local
 
+
+.opencode/
+.superpowers/

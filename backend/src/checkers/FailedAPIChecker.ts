@@ -1,11 +1,12 @@
 import { Page } from 'playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
-import { NetworkEvent } from '../analyzer/PageAnalyzer';
+import { NetworkEvent, ConsoleEvent } from '../analyzer/PageAnalyzer';
+import { collectPageFacts, PageFacts } from './pageFacts';
 
 export class FailedAPIChecker implements IChecker {
   name = 'FailedAPIChecker';
 
-  async check(url: string, page: Page, networkEvents: NetworkEvent[]): Promise<Issue[]> {
+  async check(url: string, page: Page, networkEvents: NetworkEvent[], _consoleErrors?: ConsoleEvent[], facts?: PageFacts): Promise<Issue[]> {
     const issues: Issue[] = [];
 
     const staticTypes = ['image', 'stylesheet', 'script', 'font', 'media', 'manifest', 'other'];
@@ -48,13 +49,8 @@ export class FailedAPIChecker implements IChecker {
       }
     }
 
-    const corsErrors: Array<{ url: string; duration: number }> = await page.evaluate(`(() => {
-      var entries = performance.getEntriesByType('resource');
-      return entries
-        .filter(function(e) { return e.transferSize === 0 && e.decodedBodySize === 0 && e.duration > 0; })
-        .map(function(e) { return { url: e.name, duration: Math.round(e.duration) }; })
-        .slice(0, 20);
-    })()`);
+    const f = facts ?? await collectPageFacts(page);
+    const corsErrors = f.corsCandidates;
 
     for (const entry of corsErrors) {
       const netEvent = networkEvents.find((e) => e.url === entry.url);

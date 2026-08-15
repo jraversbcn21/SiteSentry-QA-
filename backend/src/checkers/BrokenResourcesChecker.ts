@@ -1,11 +1,12 @@
 import { Page } from 'playwright';
 import { IChecker, Issue, IssueType, IssueSeverity } from '../types';
-import { NetworkEvent } from '../analyzer/PageAnalyzer';
+import { NetworkEvent, ConsoleEvent } from '../analyzer/PageAnalyzer';
+import { collectPageFacts, PageFacts } from './pageFacts';
 
 export class BrokenResourcesChecker implements IChecker {
   name = 'BrokenResourcesChecker';
 
-  async check(url: string, page: Page, networkEvents: NetworkEvent[]): Promise<Issue[]> {
+  async check(url: string, page: Page, networkEvents: NetworkEvent[], _consoleErrors?: ConsoleEvent[], facts?: PageFacts): Promise<Issue[]> {
     const issues: Issue[] = [];
 
     const resourceTypes = ['image', 'stylesheet', 'script', 'font', 'media'];
@@ -34,18 +35,8 @@ export class BrokenResourcesChecker implements IChecker {
       }
     }
 
-    const brokenImages: Array<{ src: string; alt: string; width: number; height: number }> = await page.evaluate(`(() => {
-      var imgs = Array.from(document.querySelectorAll('img'));
-      return imgs
-        .filter(function(img) {
-          if (!img.src || img.src.startsWith('data:')) return false;
-          return !img.complete || img.naturalWidth === 0;
-        })
-        .map(function(img) {
-          return { src: img.src, alt: img.alt || '', width: img.width, height: img.height };
-        })
-        .slice(0, 30);
-    })()`);
+    const f = facts ?? await collectPageFacts(page);
+    const brokenImages = f.brokenImages;
 
     for (const img of brokenImages) {
       const alreadyReported = issues.some((i) => i.url === img.src);
@@ -71,21 +62,7 @@ export class BrokenResourcesChecker implements IChecker {
       });
     }
 
-    const brokenBgImages: string[] = await page.evaluate(`(() => {
-      var elements = Array.from(document.querySelectorAll('*'));
-      var results = [];
-      for (var i = 0; i < elements.length; i++) {
-        var bg = window.getComputedStyle(elements[i]).backgroundImage;
-        if (bg && bg !== 'none' && bg.startsWith('url(')) {
-          var match = bg.match(/url\\(["']?(.+?)["']?\\)/);
-          if (match && match[1] && !match[1].startsWith('data:')) {
-            results.push(match[1]);
-          }
-        }
-        if (results.length >= 50) break;
-      }
-      return Array.from(new Set(results));
-    })()`);
+    const brokenBgImages = f.backgroundImageUrls;
 
     for (const bgUrl of brokenBgImages) {
       const event = networkEvents.find(
