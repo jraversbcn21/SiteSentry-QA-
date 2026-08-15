@@ -23,3 +23,11 @@ export var ScanRequestSchema = z.object({
     })
     .optional(),
 });
+
+export var ExplainRequestSchema = z.object({
+  type: z.string().min(1),
+  severity: z.string().min(1),
+  description: z.string().min(1),
+  url: z.string().min(1),
+  model: z.string().optional(),
+});
