@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { scanRoutes } from './routes/scan';
 import { reportsRoutes } from './routes/reports';
 import { flowsRoutes } from './routes/flows';
+import { aiRoutes } from './routes/ai';
 import { getDb } from '../database/db';
 import { authMiddleware } from './middleware/auth';
 import { getScanQueue } from '../queue/queue';
@@ -53,6 +54,16 @@ var scanLimiter = rateLimit({
 });
 app.use('/api/scan', scanLimiter);
 
+// Rate limiting for AI proxy (protects Groq quota)
+var aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Demasiadas solicitudes. Intenta de nuevo en un minuto.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/ai', aiLimiter);
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -62,6 +73,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/scan', scanRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/flows', flowsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Set/unset manual baseline
 app.post('/api/scans/:id/set-baseline', (req, res) => {
