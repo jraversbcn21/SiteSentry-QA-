@@ -105,3 +105,13 @@
 }
 
 .settings-back:hover { color: var(--color-primary-hover); }
+
+.settings-card .ai-status-ok {
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.settings-card .ai-status-error {
+  color: var(--color-error);
+  font-weight: 500;
+}

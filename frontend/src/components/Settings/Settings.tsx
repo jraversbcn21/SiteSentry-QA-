@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../../services/api';
 import './Settings.css';
 
 const GROQ_MODELS = [
@@ -10,13 +11,25 @@ const GROQ_MODELS = [
   { value: 'qwen/qwen3.6-27b', label: 'Qwen 3.6 27B' },
 ];
 
+interface AiStatus {
+  configured: boolean;
+  defaultModel: string;
+}
+
 export default function Settings() {
-  const [apiKey, setApiKey] = useState(localStorage.getItem('sitesentry_groq_api_key') || '');
   const [model, setModel] = useState(localStorage.getItem('sitesentry_groq_model') || 'llama-3.1-8b-instant');
   const [saved, setSaved] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    api.get<AiStatus>('/ai/status')
+      .then((res) => { if (!ignore) setAiStatus(res.data); })
+      .catch(() => { if (!ignore) setAiStatus(null); });
+    return () => { ignore = true; };
+  }, []);
 
   function handleSave() {
-    localStorage.setItem('sitesentry_groq_api_key', apiKey.trim());
     localStorage.setItem('sitesentry_groq_model', model);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -30,16 +43,12 @@ export default function Settings() {
 
       <div className="settings-card">
         <h3>🤖 Groq API</h3>
-        <p className="card-desc">Necesitas una API key gratuita de Groq para usar las explicaciones con IA.</p>
-        <div className="settings-field">
-          <label>API Key</label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="gsk_..."
-          />
-        </div>
+        <p className="card-desc">La API key de Groq se configura en el servidor (variable de entorno GROQ_API_KEY).</p>
+        {aiStatus && (
+          aiStatus.configured
+            ? <p className="card-desc ai-status-ok">✓ IA configurada en el servidor (modelo por defecto: {aiStatus.defaultModel})</p>
+            : <p className="card-desc ai-status-error">⚠ IA no configurada en el servidor (falta GROQ_API_KEY)</p>
+        )}
         <div className="settings-field">
           <label>Modelo</label>
           <select value={model} onChange={(e) => setModel(e.target.value)}>
@@ -48,7 +57,7 @@ export default function Settings() {
             ))}
           </select>
         </div>
-        <button className="settings-save" onClick={handleSave} disabled={!apiKey.trim()}>
+        <button className="settings-save" onClick={handleSave}>
           Guardar
         </button>
         {saved && <span className="settings-saved">✓ Guardado</span>}
