@@ -158,33 +158,38 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   });
 });
 
-var server = app.listen(PORT, () => {
-  logger.info('SiteSentry QA Backend iniciado en puerto ' + PORT + ' (API + Worker single-process)');
-  logger.info('Health: http://localhost:' + PORT + '/health');
-});
+// Exportado para tests (E2E via app.listen(0)); solo escucha al ejecutarse como entry point
+export { app };
 
-function gracefulShutdown(signal: string) {
-  logger.info('Recibida senal ' + signal + ', cerrando servidor...');
-  server.close(async () => {
-    logger.info('Servidor HTTP cerrado, drenando cola...');
-    try {
-      await getScanQueue().shutdown();
-    } catch (err) {
-      logger.error('Error drenando cola: ' + (err as Error).message);
-    }
-    try {
-      var db = getDb();
-      db.close();
-      logger.info('Base de datos cerrada');
-    } catch {}
-    logger.info('Servidor detenido');
-    process.exit(0);
+if (require.main === module) {
+  var server = app.listen(PORT, () => {
+    logger.info('SiteSentry QA Backend iniciado en puerto ' + PORT + ' (API + Worker single-process)');
+    logger.info('Health: http://localhost:' + PORT + '/health');
   });
-  setTimeout(function() {
-    logger.error('Forzando cierre tras timeout');
-    process.exit(1);
-  }, 30000);
-}
 
-process.on('SIGTERM', function() { gracefulShutdown('SIGTERM'); });
-process.on('SIGINT', function() { gracefulShutdown('SIGINT'); });
+  var gracefulShutdown = function(signal: string) {
+    logger.info('Recibida senal ' + signal + ', cerrando servidor...');
+    server.close(async () => {
+      logger.info('Servidor HTTP cerrado, drenando cola...');
+      try {
+        await getScanQueue().shutdown();
+      } catch (err) {
+        logger.error('Error drenando cola: ' + (err as Error).message);
+      }
+      try {
+        var db = getDb();
+        db.close();
+        logger.info('Base de datos cerrada');
+      } catch {}
+      logger.info('Servidor detenido');
+      process.exit(0);
+    });
+    setTimeout(function() {
+      logger.error('Forzando cierre tras timeout');
+      process.exit(1);
+    }, 30000);
+  };
+
+  process.on('SIGTERM', function() { gracefulShutdown('SIGTERM'); });
+  process.on('SIGINT', function() { gracefulShutdown('SIGINT'); });
+}
