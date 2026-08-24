@@ -1,3 +1,6 @@
+// Carga backend/.env. Primero: los modulos de abajo leen process.env al importarse.
+// No sobreescribe variables ya definidas en el entorno.
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

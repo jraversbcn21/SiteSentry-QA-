@@ -230,6 +230,13 @@ The Settings page (`/settings`) shows server AI status and stores only the model
 - Graceful shutdown: SIGTERM/SIGINT drains active job + closes DB (30s timeout)
 - Structured logging via `logger.ts` with configurable levels (`LOG_LEVEL` env var)
 
+### Ports and env files
+Both sides read a gitignored `.env` (no env vars needed on the command line):
+- `backend/.env` — loaded by `dotenv/config` (first import in `server.ts`). `PORT` (default 3001), `FRONTEND_URL`, `PAGE_TIMEOUT`, `DB_PATH`, `LOG_LEVEL`, `API_KEY`, `GROQ_API_KEY`. Real environment variables win over `.env`. Note: Node 20.6+ `--env-file` is not used — the project targets Node 18.
+- `frontend/.env` — loaded by Vite `loadEnv` in `vite.config.ts`. `BACKEND_PORT` (default 3001, must match the backend's `PORT` — it is the dev-proxy target) and `FRONTEND_PORT` (default 5173).
+
+Move both ports when 3001/5173 are taken: set `PORT` in `backend/.env` and the matching `BACKEND_PORT` in `frontend/.env`.
+
 ## Key Constraints
 
 ### page.evaluate and tsx/esbuild
