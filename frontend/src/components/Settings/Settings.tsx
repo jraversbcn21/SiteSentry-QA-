@@ -3,13 +3,18 @@ import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import './Settings.css';
 
-const GROQ_MODELS = [
-  { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (rapido)' },
-  { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (potente)' },
-  { value: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 70B (razonamiento)' },
-  { value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B' },
-  { value: 'qwen/qwen3.6-27b', label: 'Qwen 3.6 27B' },
+// Debe coincidir con ALLOWED_MODELS en backend/src/services/AiService.ts
+const AI_MODELS = [
+  { value: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (gratis)' },
+  { value: 'nvidia/nemotron-3.5-lightning:free', label: 'Nemotron 3.5 Lightning (gratis, rapido)' },
+  { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B (potente)' },
+  { value: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3 (razonamiento)' },
+  { value: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (rapido)' },
+  { value: 'qwen/qwen3-30b-a3b-instruct-2507', label: 'Qwen3 30B (economico)' },
 ];
+
+const MODEL_KEY = 'sitesentry_ai_model';
+const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
 
 interface AiStatus {
   configured: boolean;
@@ -17,7 +22,7 @@ interface AiStatus {
 }
 
 export default function Settings() {
-  const [model, setModel] = useState(localStorage.getItem('sitesentry_groq_model') || 'llama-3.1-8b-instant');
+  const [model, setModel] = useState(localStorage.getItem(MODEL_KEY) || DEFAULT_MODEL);
   const [saved, setSaved] = useState(false);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
 
@@ -30,7 +35,7 @@ export default function Settings() {
   }, []);
 
   function handleSave() {
-    localStorage.setItem('sitesentry_groq_model', model);
+    localStorage.setItem(MODEL_KEY, model);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -42,17 +47,17 @@ export default function Settings() {
       <p>Configura la integracion con IA para recibir explicaciones de los issues detectados.</p>
 
       <div className="settings-card">
-        <h3>🤖 Groq API</h3>
-        <p className="card-desc">La API key de Groq se configura en el servidor (variable de entorno GROQ_API_KEY).</p>
+        <h3>🤖 OpenRouter API</h3>
+        <p className="card-desc">La API key de OpenRouter se configura en el servidor (variable de entorno OPENROUTER_API_KEY).</p>
         {aiStatus && (
           aiStatus.configured
             ? <p className="card-desc ai-status-ok">✓ IA configurada en el servidor (modelo por defecto: {aiStatus.defaultModel})</p>
-            : <p className="card-desc ai-status-error">⚠ IA no configurada en el servidor (falta GROQ_API_KEY)</p>
+            : <p className="card-desc ai-status-error">⚠ IA no configurada en el servidor (falta OPENROUTER_API_KEY)</p>
         )}
         <div className="settings-field">
           <label>Modelo</label>
           <select value={model} onChange={(e) => setModel(e.target.value)}>
-            {GROQ_MODELS.map((m) => (
+            {AI_MODELS.map((m) => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>

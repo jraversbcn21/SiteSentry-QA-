@@ -57,7 +57,7 @@ var scanLimiter = rateLimit({
 });
 app.use('/api/scan', scanLimiter);
 
-// Rate limiting for AI proxy (protects Groq quota)
+// Rate limiting for AI proxy (protects OpenRouter quota)
 var aiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,

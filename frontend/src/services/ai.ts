@@ -1,12 +1,17 @@
 import type { Issue } from '../types';
 import api, { unwrapApiError } from './api';
 
+// Clave distinta a la de Groq: un modelo Groq guardado ya no esta en la whitelist
+// del backend y provocaria un 400, asi que el valor viejo se descarta solo.
+const MODEL_KEY = 'sitesentry_ai_model';
+const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
+
 function getModel(): string {
   try {
-    const stored = localStorage.getItem('sitesentry_groq_model');
-    return stored || 'llama-3.1-8b-instant';
+    const stored = localStorage.getItem(MODEL_KEY);
+    return stored || DEFAULT_MODEL;
   } catch {
-    return 'llama-3.1-8b-instant';
+    return DEFAULT_MODEL;
   }
 }
 

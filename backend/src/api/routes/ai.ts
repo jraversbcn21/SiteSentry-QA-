@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ExplainRequestSchema } from '../schemas';
-import { explainWithGroq, getAiStatus, AiError } from '../../services/GroqService';
+import { explainWithAi, getAiStatus, AiError } from '../../services/AiService';
 import { logger } from '../../logger';
 
 export const aiRoutes = Router();
@@ -10,7 +10,7 @@ aiRoutes.get('/status', (_req: Request, res: Response) => {
   return res.json(getAiStatus());
 });
 
-// POST /api/ai/explain - Proxy de explicaciones IA via Groq
+// POST /api/ai/explain - Proxy de explicaciones IA via OpenRouter
 aiRoutes.post('/explain', async (req: Request, res: Response) => {
   var validation = ExplainRequestSchema.safeParse(req.body);
   if (!validation.success) {
@@ -21,7 +21,7 @@ aiRoutes.post('/explain', async (req: Request, res: Response) => {
   }
 
   try {
-    var explanation = await explainWithGroq(validation.data);
+    var explanation = await explainWithAi(validation.data);
     return res.json({ explanation: explanation });
   } catch (err) {
     if (err instanceof AiError) {

@@ -232,7 +232,7 @@ export default function Home() {
               <span className="capability-icon">🤖</span>
               <div>
                 <h4>Explicaciones con IA</h4>
-                <p>Integracion con Groq LLM para explicar issues detectados con contexto tecnico.</p>
+                <p>Integracion con OpenRouter LLM para explicar issues detectados con contexto tecnico.</p>
               </div>
             </div>
             <div className="capability-card">

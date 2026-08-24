@@ -1,15 +1,18 @@
 import { logger } from '../logger';
 
+// OpenRouter es compatible con el formato de OpenAI: mismo body, mismo shape de respuesta.
+// Los ids con sufijo ':free' no consumen creditos.
 export var ALLOWED_MODELS = [
-  'llama-3.1-8b-instant',
-  'llama-3.3-70b-versatile',
-  'deepseek-r1-distill-llama-70b',
-  'openai/gpt-oss-120b',
-  'qwen/qwen3.6-27b',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'meta-llama/llama-3.3-70b-instruct',
+  'deepseek/deepseek-chat-v3-0324',
+  'google/gemini-2.5-flash-lite',
+  'qwen/qwen3-30b-a3b-instruct-2507',
 ];
 
-var GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-var DEFAULT_MODEL = 'llama-3.1-8b-instant';
+var OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+var DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
 var REQUEST_TIMEOUT_MS = 20000;
 
 export class AiError extends Error {
@@ -30,8 +33,8 @@ export interface ExplainInput {
 
 export function getAiStatus(): { configured: boolean; defaultModel: string } {
   return {
-    configured: Boolean(process.env.GROQ_API_KEY),
-    defaultModel: process.env.GROQ_MODEL || DEFAULT_MODEL,
+    configured: Boolean(process.env.OPENROUTER_API_KEY),
+    defaultModel: process.env.OPENROUTER_MODEL || DEFAULT_MODEL,
   };
 }
 
@@ -43,13 +46,13 @@ function buildPrompt(input: ExplainInput): string {
     'URL: ' + input.url;
 }
 
-export async function explainWithGroq(input: ExplainInput): Promise<string> {
-  var apiKey = process.env.GROQ_API_KEY;
+export async function explainWithAi(input: ExplainInput): Promise<string> {
+  var apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new AiError('IA no configurada en el servidor', 503);
   }
 
-  var model = input.model || process.env.GROQ_MODEL || DEFAULT_MODEL;
+  var model = input.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
   if (ALLOWED_MODELS.indexOf(model) === -1) {
     throw new AiError('Modelo no permitido: ' + model, 400);
   }
@@ -58,11 +61,14 @@ export async function explainWithGroq(input: ExplainInput): Promise<string> {
   var timeout = setTimeout(function() { controller.abort(); }, REQUEST_TIMEOUT_MS);
 
   try {
-    var response = await fetch(GROQ_API_URL, {
+    var response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + apiKey,
+        // Opcionales de OpenRouter: atribuyen el uso a esta app en su dashboard
+        'HTTP-Referer': process.env.FRONTEND_URL || 'http://localhost:5173',
+        'X-Title': 'SiteSentry QA',
       },
       body: JSON.stringify({
         model: model,
@@ -78,7 +84,7 @@ export async function explainWithGroq(input: ExplainInput): Promise<string> {
 
     if (!response.ok) {
       var errorBody = await response.text();
-      logger.error('Groq API respondio ' + response.status + ': ' + errorBody);
+      logger.error('OpenRouter respondio ' + response.status + ': ' + errorBody);
       throw new AiError('Error del servicio de IA', 502);
     }
 
@@ -89,7 +95,7 @@ export async function explainWithGroq(input: ExplainInput): Promise<string> {
     if ((err as Error).name === 'AbortError') {
       throw new AiError('El servicio de IA no respondio a tiempo', 504);
     }
-    logger.error('Fallo la llamada a Groq: ' + (err as Error).message);
+    logger.error('Fallo la llamada a OpenRouter: ' + (err as Error).message);
     throw new AiError('El servicio de IA no respondio a tiempo', 504);
   } finally {
     clearTimeout(timeout);
