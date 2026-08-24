@@ -36,7 +36,7 @@ The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 fin
 | `npm run dev` | Start API server with tsx watch (port 3001) — single-process mode: API + worker run in the same Node process |
 | `npm run build` | TypeScript compile (`tsc`) |
 | `npx tsc --noEmit` | Type-check without emitting |
-| `npm test` | Run Jest test suite (43 tests, 6 suites) |
+| `npm test` | Run Jest test suite (54 tests, 7 suites) |
 
 ### Frontend (`frontend/`)
 | Command | Description |
