@@ -7,6 +7,10 @@ scanQueue.on('process', async (job: any) => {
   try {
     await processScanJob({ data: job.data, updateProgress: async (progress: object) => {
       job.progress = progress;
+      // H10: persistir progreso en la fila del scan para sobrevivir reinicios del proceso
+      try {
+        getDb().prepare('UPDATE scans SET progress = ? WHERE id = ?').run(JSON.stringify(progress), job.data.scanId);
+      } catch {}
     }});
     console.log('✅ Scan completado: ' + job.id);
   } catch (err: any) {

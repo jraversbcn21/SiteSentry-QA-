@@ -91,10 +91,11 @@ scanRoutes.get('/:id/status', async (req: Request, res: Response) => {
     var { id } = req.params;
 
     var db = getDb();
-    var scan = db.prepare('SELECT id, url, status, created_at, completed_at FROM scans WHERE id = ?').get(id) as {
+    var scan = db.prepare('SELECT id, url, status, progress, created_at, completed_at FROM scans WHERE id = ?').get(id) as {
       id: string;
       url: string;
       status: string;
+      progress: string | null;
       created_at: string;
       completed_at: string | null;
     } | undefined;
@@ -113,6 +114,11 @@ scanRoutes.get('/:id/status', async (req: Request, res: Response) => {
       }
     } catch {
       // Ignorar errores de cola
+    }
+
+    // H10: fallback al progreso persistido en la fila (solo relevante mientras corre)
+    if (jobProgress === null && scan.progress && scan.status === ScanStatus.RUNNING) {
+      try { jobProgress = JSON.parse(scan.progress); } catch {}
     }
 
     return res.json({

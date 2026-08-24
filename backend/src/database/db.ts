@@ -64,7 +64,6 @@ var migrations: Migration[] = [
         baseline_scan_id TEXT NOT NULL,
         diff_type TEXT NOT NULL,
         issue_id TEXT,
-        baseline_issue_id TEXT,
         element_identifier TEXT,
         diff_percentage REAL NOT NULL,
         diff_image_path TEXT,
@@ -99,6 +98,11 @@ var migrations: Migration[] = [
     version: 7,
     name: 'step_index',
     sql: 'ALTER TABLE issues ADD COLUMN step_index INTEGER',
+  },
+  {
+    version: 8,
+    name: 'scan_progress',
+    sql: 'ALTER TABLE scans ADD COLUMN progress TEXT',
   },
 ];
 
