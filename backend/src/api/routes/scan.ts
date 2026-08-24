@@ -30,10 +30,11 @@ scanRoutes.post('/', async (req: Request, res: Response) => {
 
     var hostname = parsedUrl.hostname.toLowerCase();
     if (
-      hostname === 'localhost' ||
+      process.env.ALLOW_LOCAL_SCAN !== '1' &&
+      (hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
       hostname === '::1' ||
-      hostname === '0.0.0.0'
+      hostname === '0.0.0.0')
     ) {
       return res.status(400).json({ error: 'No se permite escanear direcciones locales (localhost/loopback).' });
     }

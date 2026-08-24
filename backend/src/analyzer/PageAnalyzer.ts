@@ -43,6 +43,8 @@ export class PageAnalyzer {
   async analyze(url: string): Promise<PageAnalysis> {
     // ✅ CAMBIO APLICADO — Crear contexto con fingerprint realista para evitar bloqueos anti-bot
     const context = await this.browser.newContext({
+      // Certificados self-signed de entornos locales/VPN solo con el flag de desarrollo
+      ignoreHTTPSErrors: process.env.ALLOW_LOCAL_SCAN === '1',
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       viewport: { width: 1366, height: 768 },
       locale: 'es-ES',

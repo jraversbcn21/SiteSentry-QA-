@@ -33,6 +33,11 @@ function isPrivateIp(ip: string): boolean {
 }
 
 async function validateUrl(targetUrl: string): Promise<void> {
+  // Flag de desarrollo: permite escanear localhost/IPs privadas (p.ej. entornos tras VPN corporativa)
+  if (process.env.ALLOW_LOCAL_SCAN === '1') {
+    return;
+  }
+
   var parsed: URL;
   try {
     parsed = new URL(targetUrl);
