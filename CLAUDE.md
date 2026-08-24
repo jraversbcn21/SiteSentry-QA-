@@ -36,7 +36,7 @@ The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 fin
 | `npm run dev` | Start API server with tsx watch (port 3001) — single-process mode: API + worker run in the same Node process |
 | `npm run build` | TypeScript compile (`tsc`) |
 | `npx tsc --noEmit` | Type-check without emitting |
-| `npm test` | Run Jest test suite (54 tests, 7 suites) |
+| `npm test` | Run Jest test suite (71 tests, 8 suites) |
 
 ### Frontend (`frontend/`)
 | Command | Description |
@@ -336,7 +336,6 @@ Issue type labels, icons, severity labels, and scan status labels are centralize
 
 Post-audit backlog, in priority order:
 
-1. **Checker test coverage gaps**: fixture tests exist for ContentChecker, InteractivityChecker, FormModalChecker, LazyLoadChecker, BrokenResourcesChecker and PageFacts; missing for FailedAPIChecker, ConsoleErrorChecker, PerformanceChecker, AccessibilityChecker.
-2. **Performance validation of PageFacts (T33)**: measure per-scan latency before/after the single-pass snapshot on a real heavy page to confirm the expected speedup (audit predicted a measurable win; never benchmarked).
-3. **Scan-progress persistence (H10, robust option)**: progress is exposed via in-memory `activeJob`; persisting it to the `scans` row would survive process restarts and enable future ETAs/cancel-while-running.
-4. **E2E smoke test**: no automated test covers the full pipeline (POST /api/scan → worker → report) against a local fixture page.
+1. **Performance validation of PageFacts (T33)**: measure per-scan latency before/after the single-pass snapshot on a real heavy page to confirm the expected speedup (audit predicted a measurable win; never benchmarked).
+2. **Scan-progress persistence (H10, robust option)**: progress is exposed via in-memory `activeJob`; persisting it to the `scans` row would survive process restarts and enable future ETAs/cancel-while-running.
+3. **E2E smoke test**: no automated test covers the full pipeline (POST /api/scan → worker → report) against a local fixture page.
