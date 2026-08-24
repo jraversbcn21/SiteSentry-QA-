@@ -4,17 +4,19 @@ import api from '../../services/api';
 import './Settings.css';
 
 // Debe coincidir con ALLOWED_MODELS en backend/src/services/AiService.ts
+// Los ':free' comparten cupo publico en OpenRouter y devuelven 429 con facilidad
+// (probado 2026-08-24) - se listan al final, no como recomendados por defecto.
 const AI_MODELS = [
-  { value: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (gratis)' },
-  { value: 'nvidia/nemotron-3.5-lightning:free', label: 'Nemotron 3.5 Lightning (gratis, rapido)' },
+  { value: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (recomendado, rapido)' },
   { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B (potente)' },
   { value: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3 (razonamiento)' },
-  { value: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (rapido)' },
   { value: 'qwen/qwen3-30b-a3b-instruct-2507', label: 'Qwen3 30B (economico)' },
+  { value: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B (gratis, cupo compartido inestable)' },
+  { value: 'nvidia/nemotron-3.5-lightning:free', label: 'Nemotron 3.5 Lightning (gratis, cupo compartido inestable)' },
 ];
 
 const MODEL_KEY = 'sitesentry_ai_model';
-const DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
+const DEFAULT_MODEL = 'google/gemini-2.5-flash-lite';
 
 interface AiStatus {
   configured: boolean;

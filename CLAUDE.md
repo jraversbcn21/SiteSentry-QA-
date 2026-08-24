@@ -217,7 +217,7 @@ AI explanations are proxied through the backend — the OpenRouter API key never
 | `OPENROUTER_API_KEY` env var | Required for AI; server returns 503 when unset |
 | `OPENROUTER_MODEL` env var | Optional server-side default model |
 
-Available models (backend whitelist, verified against the live OpenRouter model list on 2026-08-24): `google/gemma-4-31b-it:free` (default), `nvidia/nemotron-3.5-lightning:free`, `meta-llama/llama-3.3-70b-instruct`, `deepseek/deepseek-chat-v3-0324`, `google/gemini-2.5-flash-lite`, `qwen/qwen3-30b-a3b-instruct-2507`. The two `:free` ids need no credits. Keep this list in sync with `AI_MODELS` in `frontend/src/components/Settings/Settings.tsx`.
+Available models (backend whitelist): `google/gemini-2.5-flash-lite` (default), `meta-llama/llama-3.3-70b-instruct`, `deepseek/deepseek-chat-v3-0324`, `qwen/qwen3-30b-a3b-instruct-2507`, `google/gemma-4-31b-it:free`, `nvidia/nemotron-3.5-lightning:free`. The `:free` ids need no credits but share a public OpenRouter pool and 429 easily (hit in real testing 2026-08-24) - not used as default for that reason, though still selectable. Keep this list in sync with `AI_MODELS` in `frontend/src/components/Settings/Settings.tsx`.
 
 The Settings page (`/settings`) shows server AI status and stores only the model preference in localStorage (`sitesentry_ai_model` — renamed from `sitesentry_groq_model` so stale Groq ids are discarded rather than rejected with 400). `services/ai.ts` sends it per request; the backend validates it against the whitelist.
 

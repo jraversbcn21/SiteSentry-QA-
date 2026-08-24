@@ -47,7 +47,7 @@ describe('AiService', () => {
       mockAiOk('ok');
       await explainWithAi(validInput);
       var body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
-      expect(body.model).toBe('google/gemma-4-31b-it:free');
+      expect(body.model).toBe('google/gemini-2.5-flash-lite');
     });
 
     it('uses OPENROUTER_MODEL env var when set and no model provided', async () => {
@@ -98,7 +98,7 @@ describe('AiService', () => {
 
   describe('getAiStatus', () => {
     it('reports configured when key present', () => {
-      expect(getAiStatus()).toEqual({ configured: true, defaultModel: 'google/gemma-4-31b-it:free' });
+      expect(getAiStatus()).toEqual({ configured: true, defaultModel: 'google/gemini-2.5-flash-lite' });
     });
 
     it('reports not configured when key missing', () => {

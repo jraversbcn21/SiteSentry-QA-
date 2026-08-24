@@ -1,18 +1,20 @@
 import { logger } from '../logger';
 
 // OpenRouter es compatible con el formato de OpenAI: mismo body, mismo shape de respuesta.
-// Los ids con sufijo ':free' no consumen creditos.
+// Los ids con sufijo ':free' no consumen creditos, pero comparten un cupo publico entre
+// todos los usuarios de OpenRouter y devuelven 429 con facilidad (probado 2026-08-24) -
+// no se usan como default por eso, aunque siguen disponibles para quien quiera elegirlos.
 export var ALLOWED_MODELS = [
-  'google/gemma-4-31b-it:free',
-  'nvidia/nemotron-3.5-lightning:free',
+  'google/gemini-2.5-flash-lite',
   'meta-llama/llama-3.3-70b-instruct',
   'deepseek/deepseek-chat-v3-0324',
-  'google/gemini-2.5-flash-lite',
   'qwen/qwen3-30b-a3b-instruct-2507',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3.5-lightning:free',
 ];
 
 var OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-var DEFAULT_MODEL = 'google/gemma-4-31b-it:free';
+var DEFAULT_MODEL = 'google/gemini-2.5-flash-lite';
 var REQUEST_TIMEOUT_MS = 20000;
 
 export class AiError extends Error {
