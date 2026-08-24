@@ -26,7 +26,7 @@ The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 fin
 | Phase 7 — Testing | T02-T03 | Done |
 | Phase 8 — Production Hardening | T26-T34, T36-T38 | Done |
 
-**T33 (H9) — PageFacts DOM pre-pass (executed):** `checkers/pageFacts.ts` provides `collectPageFacts(page)` — a single `page.evaluate()` round-trip that snapshots all 16 DOM fragments the checkers previously queried independently (broken images, background images, empty containers, error states, main content, CORS candidates, forms, modals, cookie blockers, dead buttons, placeholder links, pseudo-disabled buttons, lazy images, spinners, placeholder images, performance metrics). `CheckerRunner` collects it once per run and passes it to every checker via the optional 5th `facts` parameter of `IChecker.check`; checkers fall back to collecting it themselves when called standalone (e.g. in tests).
+**T33 (H9) — PageFacts DOM pre-pass (executed):** `checkers/pageFacts.ts` provides `collectPageFacts(page)` — a single `page.evaluate()` round-trip that snapshots all 16 DOM fragments the checkers previously queried independently (broken images, background images, empty containers, error states, main content, CORS candidates, forms, modals, cookie blockers, dead buttons, placeholder links, pseudo-disabled buttons, lazy images, spinners, placeholder images, performance metrics). `CheckerRunner` collects it once per run and passes it to every checker via the optional 5th `facts` parameter of `IChecker.check`; checkers fall back to collecting it themselves when called standalone (e.g. in tests). **Benchmarked 2026-08-24** (en.wikipedia.org/wiki/United_States, 21.7k DOM nodes, median of 5): shared pre-pass 169ms vs 1230ms per-checker self-collection — ~1.06s (86%) saved per scan in the checker phase.
 
 ## Commands
 
@@ -36,7 +36,7 @@ The architecture audit at **`docs/architecture-audit-2026-07-04.md`** had 34 fin
 | `npm run dev` | Start API server with tsx watch (port 3001) — single-process mode: API + worker run in the same Node process |
 | `npm run build` | TypeScript compile (`tsc`) |
 | `npx tsc --noEmit` | Type-check without emitting |
-| `npm test` | Run Jest test suite (71 tests, 8 suites) |
+| `npm test` | Run Jest test suite (72 tests, 9 suites) |
 
 ### Frontend (`frontend/`)
 | Command | Description |
@@ -81,19 +81,19 @@ POST /api/scan  [auth + rate-limit + SSRF pre-check]
 | `src/services/ScreenshotService.ts` | Full-page + per-element screenshot capture, directory creation, last-step copy |
 | `src/services/VisualRegressionService.ts` | Baseline lookup, pixelmatch diff, visual_diffs persistence |
 | `src/workers/ScanWorker.ts` | Thin orchestrator: browser → analyze → [flow] → checkers → screenshots → persist → visual regression |
-| `src/workers/index.ts` | Registers queue processor, recovers orphaned PENDING/RUNNING scans on startup |
-| `src/api/routes/scan.ts` | POST scan (zod-validated, SSRF pre-check), GET status with progress. Uses shared `schemas.ts`. |
+| `src/workers/index.ts` | Registers queue processor, persists job progress to the `scans.progress` column (H10), recovers orphaned PENDING/RUNNING scans on startup |
+| `src/api/routes/scan.ts` | POST scan (zod-validated, SSRF pre-check), GET status with progress (in-memory `activeJob` first, DB `progress` column as fallback while RUNNING). Uses shared `schemas.ts`. |
 | `src/api/routes/reports.ts` | GET report with issues + screenshots + visual diffs + per-step results, GET reports list. NaN-safe pagination. |
 | `src/api/routes/flows.ts` | CRUD for reusable interactive flows (5 endpoints). Uses shared zod validation from `schemas.ts`. |
 | `src/api/routes/ai.ts` | Groq proxy: POST /explain (zod-validated, model whitelist), GET /status. Dedicated 30 req/min rate limit. |
 | `src/services/GroqService.ts` | Groq API calls: prompt building, model whitelist, 20s AbortController timeout, typed `AiError`. Reads `GROQ_API_KEY`/`GROQ_MODEL` env vars. |
 | `src/api/schemas.ts` | Shared zod schemas: `FlowStepSchema`, `ScanRequestSchema`. Used by both `scan.ts` and `flows.ts`. |
 | `src/api/middleware/auth.ts` | API-key authentication middleware. Requires `x-api-key` header if `API_KEY` env var is set. Transparent in dev (no key required). |
-| `src/api/server.ts` | Express app: CORS, helmet, auth middleware, rate limiting, routes, screenshot serving, `/health` endpoint, graceful shutdown (SIGTERM/SIGINT with queue drain + 30s timeout). |
+| `src/api/server.ts` | Express app: CORS, helmet, auth middleware, rate limiting, routes, screenshot serving, `/health` endpoint, graceful shutdown (SIGTERM/SIGINT with queue drain + 30s timeout). Exports `app` for tests; listens only when run as entry point. |
 | `src/security/ssrf.ts` | SSRF protection: DNS-resolve hostname, validate against private/reserved IP ranges (RFC1918, loopback, link-local). |
 | `src/logger.ts` | Structured logger with ISO timestamps and levels (debug/info/warn/error). Configurable via `LOG_LEVEL` env var. |
 | `src/types/index.ts` | Shared `Summary` type, `Issue` with optional `id`/`stepIndex`, enums (`IssueType`, `IssueSeverity`, `ScanStatus`), interfaces |
-| `src/database/db.ts` | SQLite via `better-sqlite3` with versioned migration tracking (`schema_migrations` table, 7 migrations) |
+| `src/database/db.ts` | SQLite via `better-sqlite3` with versioned migration tracking (`schema_migrations` table, 8 migrations) |
 | `src/queue/queue.ts` | In-process queue (EventEmitter-based). Tracks `activeJob` for progress visibility. `shutdown()` drains active job. |
 
 ### Checkers
@@ -252,10 +252,10 @@ await page.evaluate(`(() => {
 Use `import { randomUUID } from 'crypto'`, NOT `crypto.randomUUID()`.
 
 ### Database
-SQLite via `better-sqlite3`. File at `backend/data/sitesentry.db` (configurable via `DB_PATH` env var). Versioned migration system with `schema_migrations` table tracking 7 ordered migrations. Each migration has a version number, name, and SQL. New migrations are appended to the array in `db.ts`.
+SQLite via `better-sqlite3`. File at `backend/data/sitesentry.db` (configurable via `DB_PATH` env var). Versioned migration system with `schema_migrations` table tracking 8 ordered migrations. Each migration has a version number, name, and SQL. New migrations are appended to the array in `db.ts`.
 
 Tables:
-- `scans`: id, url, status, config, is_baseline, created_at, completed_at
+- `scans`: id, url, status, config, is_baseline, progress, created_at, completed_at
 - `issues`: id, scan_id, type, severity, url, source_url, description, metadata, screenshot_path, step_index, created_at
 - `visual_diffs`: id, scan_id, baseline_scan_id, diff_type, issue_id, baseline_issue_id, element_identifier, diff_percentage, diff_image_path, threshold_used, created_at
 - `flows`: id, name, steps, created_at, updated_at
@@ -334,8 +334,4 @@ Issue type labels, icons, severity labels, and scan status labels are centralize
 
 ## Pending Tasks (next session)
 
-Post-audit backlog, in priority order:
-
-1. **Performance validation of PageFacts (T33)**: measure per-scan latency before/after the single-pass snapshot on a real heavy page to confirm the expected speedup (audit predicted a measurable win; never benchmarked).
-2. **Scan-progress persistence (H10, robust option)**: progress is exposed via in-memory `activeJob`; persisting it to the `scans` row would survive process restarts and enable future ETAs/cancel-while-running.
-3. **E2E smoke test**: no automated test covers the full pipeline (POST /api/scan → worker → report) against a local fixture page.
+Post-audit backlog: **cleared 2026-08-24** — checker test coverage, PageFacts benchmark (see T33 note above), scan-progress persistence (H10, migration 8), and the E2E smoke test (`e2e.test.ts`) are all done. No pending tasks.
