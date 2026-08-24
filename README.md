@@ -90,20 +90,12 @@ Abre `http://localhost:5173`, introduce una URL y lanza el analisis.
 
 - **Flujos interactivos**: Define secuencias multi-paso (login, busqueda, carrito) via JSON o importando scripts de Playwright codegen
 - **Regresion visual**: Compara screenshots entre scans de la misma URL con pixelmatch
-- **Explicaciones con IA**: Integracion con Groq LLM para explicar issues detectados
+- **Explicaciones con IA**: Integracion con OpenRouter (varios modelos LLM) para explicar issues detectados, via proxy del backend
 - **Exportacion**: JSON y CSV descargables del reporte
 
 ## Variables de Entorno
 
-Archivo `backend/.env` (opcional, todo tiene defaults funcionales):
-
-```env
-PORT=3001
-FRONTEND_URL=http://localhost:5173
-DB_PATH=./data/sitesentry.db
-PAGE_TIMEOUT=60000
-VISUAL_DIFF_THRESHOLD=0.05
-```
+Todo tiene defaults funcionales; ningun `.env` es obligatorio. Lista completa de variables y guia paso a paso en [SETUP.md](SETUP.md).
 
 ## Estructura
 
@@ -129,9 +121,4 @@ SiteSentry QA/
 
 ## Troubleshooting
 
-| Problema | Solucion |
-|---|---|
-| Analisis no progresa | Verificar logs del backend |
-| Timeout en paginas pesadas | Aumentar `PAGE_TIMEOUT` en `.env` |
-| Playwright no encuentra navegador | `npx playwright install chromium` |
-| Error de CORS | Verificar `FRONTEND_URL` en `.env` |
+Ver la seccion "Solucion de Problemas" en [SETUP.md](SETUP.md).

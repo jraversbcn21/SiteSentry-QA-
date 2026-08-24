@@ -342,4 +342,8 @@ Issue type labels, icons, severity labels, and scan status labels are centralize
 
 ## Pending Tasks (next session)
 
-Post-audit backlog: **cleared 2026-08-24** — checker test coverage, PageFacts benchmark (see T33 note above), scan-progress persistence (H10, migration 8), and the E2E smoke test (`e2e.test.ts`) are all done. No pending tasks.
+Post-audit backlog: **cleared 2026-08-24** — checker test coverage, PageFacts benchmark (see T33 note above), scan-progress persistence (H10, migration 8), and the E2E smoke test (`e2e.test.ts`) are all done. No blocking pending tasks.
+
+**Closing audit (2026-08-24):** `README.md`/`SETUP.md`/`backend/API.md` had drifted since the initial commit (Groq references, missing OpenRouter/flows/AI/set-baseline endpoints, incomplete env var docs, duplicated content between README and SETUP) — all fixed in this pass. Optional follow-ups, none blocking:
+- No `.env.example` file in `backend/` or `frontend/` — new contributors have to read `SETUP.md`'s env var table instead of copying a template. Low effort if it becomes friction.
+- No `docker-compose.yml`/Dockerfile despite the app being fully self-contained (SQLite + in-process queue) — would make onboarding a one-command `docker compose up`. Only worth it if the project needs to run outside a dev machine.
